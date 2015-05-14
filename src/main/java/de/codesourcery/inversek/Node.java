@@ -9,13 +9,16 @@ public abstract class Node
 	}
 	
 	private NodeType type;
-	private String name;
+	private String id;
 	
-	public Node(String name,NodeType type) {
+	public Node(String id,NodeType type) {
 		if (type == null) {
 			throw new IllegalArgumentException("type must not be NULL");
 		}
-		this.name = name;
+		if ( id == null || id.trim().length() == 0 ) {
+			throw new IllegalArgumentException("ID must not be NULL/blank");
+		}
+		this.id = id;
 		this.type = type;
 	}
 	
@@ -29,10 +32,10 @@ public abstract class Node
 	
 	@Override
 	public String toString() {
-		return name;
+		return id;
 	}
 	
-	public final String getName() {
-		return name;
+	public final String getId() {
+		return id;
 	}
 }

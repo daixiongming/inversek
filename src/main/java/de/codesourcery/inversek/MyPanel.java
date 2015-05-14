@@ -23,8 +23,12 @@ public final class MyPanel extends JPanel implements ITickListener
 	
 	private final Model model;
 	
-	private BufferedImage[] buffers = null; 
-	private Graphics2D[] graphics = null;
+	private final Object INIT_LOCK = new Object();
+	
+	private boolean initialized = false;
+	
+	private final BufferedImage[] buffers = new BufferedImage[2]; 
+	private final Graphics2D[] graphics = new Graphics2D[2];
 	private int bufferIdx = 0;
 	
 	private int screenCenterX;
@@ -65,12 +69,6 @@ public final class MyPanel extends JPanel implements ITickListener
 			final Node n = getNodeAt( p.x ,p.y );
 			if ( hoveredNode != n ) {
 				hoveredNode = n;
-			}
-			
-			if ( desiredPosition == null || ! desiredPosition.equals( p ) ) 
-			{
-				desiredPosition = new Point( p );
-				desiredPositionChanged = true;
 			}			
 		}
 	};
@@ -164,9 +162,9 @@ public final class MyPanel extends JPanel implements ITickListener
 			case BONE:
 				Bone b = (Bone) selectedNode;
 				if ( b.jointB == null ) {
-					details = " , connected to "+b.jointA.getName();
+					details = " , connected to "+b.jointA;
 				} else {
-					details = " , connects "+b.jointA.getName()+" with "+b.jointB.getName();
+					details = " , connects "+b.jointA+" with "+b.jointB;
 				}
 				break;
 			case JOINT:
@@ -179,7 +177,7 @@ public final class MyPanel extends JPanel implements ITickListener
 		final Graphics2D graphics = getBackBufferGraphics();
 		
 		graphics.setColor(Color.BLACK);
-		graphics.drawString( "SELECTION: "+selectedNode.getName()+details, 5 , 15 );
+		graphics.drawString( "SELECTION: "+selectedNode.getId()+details, 5 , 15 );
 	}
 
 	private boolean renderNode(Node n) 
@@ -333,28 +331,32 @@ public final class MyPanel extends JPanel implements ITickListener
 	
 	private void maybeInit() 
 	{
-		if ( buffers == null || buffers[0].getWidth() != getWidth() || buffers[0].getHeight() != getHeight() ) {
-			if ( graphics != null) 
+		synchronized( INIT_LOCK ) 
+		{
+			if ( ! initialized || buffers[0].getWidth() != getWidth() || buffers[0].getHeight() != getHeight() ) 
 			{
-				graphics[0].dispose();
-				graphics[1].dispose();
+				if ( graphics[0] != null) 
+				{
+					graphics[0].dispose();
+				}
+				if ( graphics[1] != null) { 
+					graphics[1].dispose();
+				}
+				buffers[0] = new BufferedImage( getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
+				buffers[1] = new BufferedImage( getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
+				graphics[0] = buffers[0].createGraphics();
+				graphics[1] = buffers[1].createGraphics();
+				initialized = true;
+				render();
 			}
-			if ( buffers == null ) {
-				buffers = new BufferedImage[2];
-				graphics = new Graphics2D[2];
-			}
-			buffers[0] = new BufferedImage( getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
-			buffers[1] = new BufferedImage( getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
-			graphics[0] = buffers[0].createGraphics();
-			graphics[1] = buffers[1].createGraphics();
-			render();
 		}
 	}
 
 	@Override
-	public void tick(float deltaSeconds) 
+	public boolean tick(float deltaSeconds) 
 	{
 		render();
 		repaint();
+		return true;
 	}	
 }

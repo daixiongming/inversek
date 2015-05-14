@@ -2,5 +2,5 @@ package de.codesourcery.inversek;
 
 public interface ITickListener 
 {
-	public void tick(float deltaSeconds);
+	public boolean tick(float deltaSeconds);
 }

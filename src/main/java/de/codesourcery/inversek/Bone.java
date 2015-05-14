@@ -19,6 +19,20 @@ public class Bone extends Node
 		this.jointB = jointB;
 	}
 	
+	public Bone(Bone other, Joint jointA, Joint jointB) 
+	{
+		super(other.getId(),NodeType.BONE);
+		this.start.set( other.start );
+		this.end.set( other.end );
+		this.length = other.length;
+		this.jointA = jointA;
+		this.jointB = jointB;		
+	}
+
+	public Bone createCopy(Joint jointA, Joint jointB) {
+		return new Bone(this,jointA,jointB);
+	}
+	
 	public Vector2 getCenter() {
 		return start.cpy().add( end ).scl( 0.5f );
 	}

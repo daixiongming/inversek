@@ -1,49 +1,32 @@
 package de.codesourcery.inversek;
 
 import java.awt.Dimension;
-import java.awt.event.KeyEvent;
 
 import javax.swing.JFrame;
 
 import com.badlogic.gdx.math.Vector2;
 
-import de.codesourcery.inversek.Joint.Range;
-import de.codesourcery.inversek.Node.NodeType;
-
 public class Main 
 {
-	protected static final float ROTATE_DELTA_DEGREES = 1;
-
+	public static final boolean DEBUG = false;
+	
 	public static void main(String[] args) 
 	{
 		new Main().run();
 	}
 
-	private final Model model;
+	private final RobotArm robotArm;
+	
 	private final MyPanel panel;
-	private final KeyboardInput input = new KeyboardInput();
-	private final Bone effector;
+	private final TickListenerContainer listenerContainer = new TickListenerContainer();
 
 	public Main() 
 	{
-		model = new Model();
-
-		final Joint j1 = model.addJoint( "Joint #0" , 45 );
-		final Joint j2 = model.addJoint( "Joint #1" , 90 );
-		j2.setRange( new Range( 270 , 90 ) );
+		robotArm = new RobotArm();
+		panel = new MyPanel( robotArm.getModel() );
 		
-		final Joint j3 = model.addJoint( "Joint #2" , 90 );
-		j3.setRange( new Range( 270 , 90 ) );
-		
-		model.addBone( "Bone #0", j1,j2 , 25 );
-		model.addBone( "Bone #1", j2, j3 , 25 );
-		effector = model.addBone( "Bone #2", j3, null , 25 );
-
-		model.applyForwardKinematics();
-
-		panel = new MyPanel( model );
+		listenerContainer.add( robotArm );
 	}
-
 
 	public void run() {
 
@@ -57,8 +40,6 @@ public class Main
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
 
-		input.attach(panel);
-
 		// main loop
 
 		long previous = System.currentTimeMillis();
@@ -68,16 +49,19 @@ public class Main
 			float deltaSeconds = (now - previous)/1000f;
 			previous = now;
 
-			processKeyboardInput();
-			
 			if ( panel.desiredPositionChanged ) 
 			{
 				final Vector2 target = panel.viewToModel( panel.desiredPosition );
-				System.out.println("Desired target => view: "+panel.desiredPosition+" (world: "+target+")");
-				model.applyInverseKinematics( effector , target );
-				panel.desiredPositionChanged = false;
+				if ( robotArm.moveArm( target ) ) {
+					System.out.println("Desired target => view: "+panel.desiredPosition+" (world: "+target+")");					
+				} else {
+					System.err.println("Arm refused to move to "+target);
+				}
+				panel.desiredPositionChanged = false;				
 			}
 
+			listenerContainer.tick( deltaSeconds );
+			
 			panel.tick( deltaSeconds );
 
 			try {
@@ -85,25 +69,6 @@ public class Main
 			} catch(InterruptedException e) {
 				Thread.currentThread().interrupt();
 			}
-		}
-	}
-
-	private void processKeyboardInput()
-	{
-		if ( panel.selectedNode == null || ! panel.selectedNode.hasType( NodeType.JOINT ) ) 
-		{
-			return;
-		}
-
-		if ( input.isPressed( KeyEvent.VK_LEFT ) ) 
-		{
-			((Joint) panel.selectedNode).addOrientation( ROTATE_DELTA_DEGREES );
-			model.applyForwardKinematics();
-		} 
-		else if ( input.isPressed( KeyEvent.VK_RIGHT ) )
-		{ 
-			((Joint) panel.selectedNode).addOrientation( -ROTATE_DELTA_DEGREES );
-			model.applyForwardKinematics();
 		}
 	}
 }

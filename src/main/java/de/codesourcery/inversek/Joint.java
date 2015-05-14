@@ -1,6 +1,7 @@
 package de.codesourcery.inversek;
 
-import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import com.badlogic.gdx.math.Vector2;
 
@@ -16,42 +17,93 @@ public class Joint extends Node
 	public Bone successor;
 	public Bone predecessor;
 	
-	public Range range = new Range(0,360);
+	public MovementRange range = new MovementRange(0,360);
 	
-	public static final class Range {
+	public Joint(Joint other,Bone predecessor,Bone successor) 
+	{
+		super(other.getId(),NodeType.JOINT);
+		this.orientationDegrees = other.orientationDegrees;
+		this.orientation.set( other.orientation );
+		this.position.set( other.position );
+		this.radius = other.radius;
+		this.successor = successor;
+		this.predecessor = predecessor;
+		this.range = other.range;
+	}
+	
+	public Joint createCopy() {
+		return new Joint(this,null,null);
+	}
+	
+	protected static final class Interval {
 		
-		public final float[] degStart;
-		public final float[] degEnd;
+		public final float start;
+		public final float end;
 		
-		public Range(float degStart,float degEnd) 
+		public Interval(float start, float end) 
 		{
-			if ( degStart < degEnd ) {
-				this.degStart = new float[]{ degStart };
-				this.degEnd = new float[]  { degEnd   };
-			} else {
-				this.degStart = new float[]{ degStart ,      0 };
-				this.degEnd = new float[]  {      360 , degEnd };
+			if ( start > end ) {
+				throw new IllegalArgumentException("start must be <= end , start: "+start+", end: "+end);
 			}
+			this.start = start;
+			this.end = end;
+		}
+		
+		public boolean contains(float f) 
+		{
+			return start <= f && f <= end;
 		}
 		
 		@Override
 		public String toString() {
-			return "Range[ "+degStart+" -> "+degEnd+" ]";
+			return "["+start+","+end+"]";
+		}
+	}
+	
+	public static final class MovementRange {
+		
+		public final Interval[] intervals;
+		
+		public MovementRange(float degStart,float degEnd) 
+		{
+			if ( degStart <= degEnd ) {
+				this.intervals = new Interval[] { new Interval( degStart , degEnd ) };
+			} else {
+				this.intervals = new Interval[] { 
+						new Interval( degStart , 360 ),
+						new Interval( 0 , degEnd )
+				}; 
+			}
+		}
+		
+		public MovementRange(MovementRange other) 
+		{
+			this.intervals = new Interval[ other.intervals.length ];
+			System.arraycopy( other.intervals , 0 , this.intervals , 0 , this.intervals.length );
+		}
+		
+		public MovementRange createCopy() {
+			return new MovementRange(this);
+		}
+		
+		@Override
+		public String toString() {
+			return "Range[ "+Arrays.stream( intervals ).map( Interval::toString ).collect( Collectors.joining(",") )+" ]";
 		}
 		
 		public float getMaxAngleCCW() {
-			if ( this.degStart.length == 1 ) {
-				return this.degEnd[0];
+			if ( this.intervals.length == 1 ) {
+				return this.intervals[0].end;
 			}
-			return this.degEnd[1];
+			return this.intervals[1].end;
 		}
 		
 		public float getMaxAngleCW() {
-			return this.degStart[0];
+			return this.intervals[0].start;
 		}
 		
-		private float normalize(float value) {
-			while ( value >= 360 ) {
+		public static float normalize(float value) {
+			while ( value > 360 ) {
 				value -= 360;
 			}
 			while ( value < 0 ) {
@@ -64,9 +116,9 @@ public class Joint extends Node
 		{
 			value = normalize(value);
 
-			for ( int i = 0 ; i < degStart.length ; i++ ) 
+			for ( int i = 0 ; i < intervals.length ; i++ ) 
 			{
-				if ( value >= degStart[i] && value <= degEnd[i] ) {
+				if ( intervals[i].contains( value ) ) {
 					return true;
 				}
 			}
@@ -75,7 +127,11 @@ public class Joint extends Node
 		
 		public float clamp(float value) 
 		{
-			if ( isInRange( value ) ) {
+			if ( isInRange( value ) ) 
+			{
+				if ( value < 0 || value > 360 ) {
+					return normalize(value);
+				}
 				return value;
 			}
 			
@@ -83,21 +139,21 @@ public class Joint extends Node
 			
 			float bestValue=value;
 			float bestDelta=Integer.MAX_VALUE;
-			for ( int i = 0 ; i < degStart.length ; i++ ) 
+			for ( int i = 0 ; i < intervals.length ; i++ ) 
 			{
-				float d1 = Math.abs( value - degStart[i] );
-				float d2 = Math.abs( value - degEnd[i] );
+				float d1 = Math.abs( value - intervals[i].start );
+				float d2 = Math.abs( value - intervals[i].end );
 				if ( d1 < d2 ) 
 				{
 					if ( d1 < bestDelta ) {
-						bestValue = degStart[i];
+						bestValue = intervals[i].start;
 						bestDelta = d1;
 					}
 				} 
 				else 
 				{
 					if ( d2 < bestDelta ) {
-						bestValue = degEnd[i];
+						bestValue = intervals[i].end;
 						bestDelta = d2;
 					}
 				}
@@ -114,10 +170,11 @@ public class Joint extends Node
 			throw new IllegalArgumentException("radius needs to be > 0,was: "+radius);
 		}
 		this.radius = radius;
+		this.range = new MovementRange(0,360);
 		setOrientation(orientation);
 	}
 	
-	public void setRange(Range range) {
+	public void setRange(MovementRange range) {
 		if (range == null) {
 			throw new IllegalArgumentException("range must not be NULL");
 		}
@@ -177,15 +234,19 @@ public class Joint extends Node
 		{
 			// rotate counter-clockwise
 			float clampedValue = range.getMaxAngleCCW();
-			System.out.println("Illegal rotation by "+degreesDelta+" , current angle is "+this.orientationDegrees+" ,"
+			if ( Main.DEBUG ) {
+				System.out.println("Illegal rotation by "+degreesDelta+" , current angle is "+this.orientationDegrees+" ,"
 					+ ", result "+newValue+" is not in range "+range+", clamping to "+clampedValue );
+			}
 			setOrientation( clampedValue  );
 			return;
 		} 
 		// rotate clockwise
 		float clampedValue = range.getMaxAngleCW();
-		System.out.println("Illegal rotation by "+degreesDelta+" , current angle is "+this.orientationDegrees+" ,"
-				+ ", result "+newValue+" is not in range "+range+", clamping to "+clampedValue);		
+		if ( Main.DEBUG ) {
+			System.out.println("Illegal rotation by "+degreesDelta+" , current angle is "+this.orientationDegrees+" ,"
+				+ ", result "+newValue+" is not in range "+range+", clamping to "+clampedValue);
+		}
 		setOrientation( clampedValue);
 	}	
 	
@@ -200,5 +261,10 @@ public class Joint extends Node
 	
 	public Vector2 getOrientation() {
 		return orientation;
-	}	
+	}
+	
+	@Override
+	public String toString() {
+		return "Joint "+getId()+" , angle "+this.orientationDegrees+", "+this.range;
+	}
 }
