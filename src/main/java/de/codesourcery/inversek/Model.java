@@ -17,9 +17,11 @@ public class Model implements Iterable<Node>
     // Set an epsilon value to prevent division by small numbers.
    private static final double EPSILON = 0.0001; 
    
-   private static final double DESIRED_ARRIVAL_DST = 0.01;
+   private static final double DESIRED_ARRIVAL_DST = 1;
    
-   private static final double TRIVIAL_DST = 0.1;
+   protected static final int FAILURE_RETRY_COUNT = 5;
+   
+   private static final double MIN_CHANGE  = 0.1;
 	
 	private final List<Joint> joints = new ArrayList<>();
 	private final List<Bone> bones = new ArrayList<>();
@@ -112,8 +114,25 @@ public class Model implements Iterable<Node>
 	public void applyInverseKinematics(Bone bone,Vector2 desiredPosition) 
 	{
 		Outcome result = Outcome.FAILURE;
-		while ( ( result = singleIteration( bone , desiredPosition ) ) == Outcome.PROCESSING );
-		System.out.println("RESULT: "+result);
+		int iterations = 0;
+		int retries = FAILURE_RETRY_COUNT;
+		while ( true ) 
+		{
+			result = singleIteration( bone , desiredPosition );
+			iterations++;
+			if ( result == Outcome.SUCCESS ) {
+				break;
+			}
+			if ( result == Outcome.FAILURE ) {
+				retries--;
+				if ( retries < 0 ) {
+					break;
+				}
+			} else {
+				retries = FAILURE_RETRY_COUNT;
+			}
+		}
+		System.out.println("RESULT: "+result+" (iterations: "+iterations+")");
 	}
 	
 	public Outcome singleIteration(Bone bone,Vector2 desiredPosition) 
@@ -128,8 +147,14 @@ public class Model implements Iterable<Node>
 			final Bone currentBone = currentJoint == null ? null : currentJoint.successor;
 			if ( currentBone == null ) 
 			{
-				final float currentDst = bone.end.dst( desiredPosition ); 
-				if (  Math.abs( currentDst - initialDistance ) >= TRIVIAL_DST ) {
+				// check for termination
+				final float currentDst = bone.end.dst( desiredPosition ); 				
+				if ( currentDst <= DESIRED_ARRIVAL_DST ) {
+					System.out.println("Arrived at destination");
+					return Outcome.SUCCESS;
+				}	
+				
+				if ( Math.abs( currentDst - initialDistance ) >= MIN_CHANGE ) {
 					return Outcome.PROCESSING;
 				}
 				return Outcome.FAILURE;				
@@ -165,10 +190,10 @@ public class Model implements Iterable<Node>
 	        if( sinRotAng < 0.0 ) {
 	            rotAng = -rotAng;	
 	        }
-	        // convert rad to deg
-	        final double rotDeg = rotAng * (180.0/Math.PI);
 	        
-	        // Rotate the current bone in local space (this value is output to the user)	        
+	        // apply rotation
+	        
+	        final double rotDeg = rotAng * (180.0/Math.PI); // convert rad to deg
 	        currentJoint.addOrientation( (float) rotDeg );
 	        
 			// apply delta
@@ -185,7 +210,6 @@ public class Model implements Iterable<Node>
 				System.out.println("Arrived at destination");
 				return Outcome.SUCCESS;
 			}			
-			
 			
 			if ( currentJoint.predecessor != null ) 
 			{

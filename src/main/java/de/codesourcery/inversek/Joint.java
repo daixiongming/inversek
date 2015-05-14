@@ -14,6 +14,40 @@ public class Joint extends Node
 	public Bone successor;
 	public Bone predecessor;
 	
+	public Range range = new Range(0,360);
+	
+	public static final class Range {
+		
+		private final float degStart;
+		private final float degEnd;
+		
+		public Range(float degStart,float degEnd) {
+			this.degStart = degStart;
+			this.degEnd = degEnd;
+		}
+		
+		public float clamp(float value) 
+		{
+			while ( value >= 360 ) {
+				value -= 360;
+			}
+			while ( value < 0 ) {
+				value += 360;
+			}
+			if ( value >= degStart && value <= degEnd ) {
+				return value;
+			}
+			float d1 = Math.abs( value - degStart );
+			float d2 = Math.abs( value - degEnd );
+			if ( d1 < d2 ) {
+				System.out.println("Clamping "+value+" to "+degStart);
+				return degStart;
+			}
+			System.out.println("Clamping "+value+" to "+degEnd);
+			return degEnd;
+		}
+	}
+	
 	public Joint(String name,float radius,float orientation) 
 	{
 		super(name,NodeType.JOINT);
@@ -22,6 +56,13 @@ public class Joint extends Node
 		}
 		this.radius = radius;
 		setOrientation(orientation);
+	}
+	
+	public void setRange(Range range) {
+		if (range == null) {
+			throw new IllegalArgumentException("range must not be NULL");
+		}
+		this.range = range;
 	}
 	
 	public boolean hasSuccessor() {
@@ -60,7 +101,7 @@ public class Joint extends Node
 	
 	public void setOrientation(float degrees) 
 	{
-		orientationDegrees = degrees;
+		orientationDegrees = range.clamp( degrees );
 		orientation.set(1,0);
 		orientation.rotate( degrees );
 	}

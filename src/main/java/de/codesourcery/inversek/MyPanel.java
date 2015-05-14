@@ -58,6 +58,7 @@ public final class MyPanel extends JPanel implements ITickListener
 				}
 			}
 		}
+		
 		public void mouseMoved(java.awt.event.MouseEvent e) 
 		{
 			final Point p = e.getPoint();
