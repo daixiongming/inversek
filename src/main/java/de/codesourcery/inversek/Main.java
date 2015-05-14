@@ -7,6 +7,7 @@ import javax.swing.JFrame;
 
 import com.badlogic.gdx.math.Vector2;
 
+import de.codesourcery.inversek.Joint.Range;
 import de.codesourcery.inversek.Node.NodeType;
 
 public class Main 
@@ -29,7 +30,10 @@ public class Main
 
 		final Joint j1 = model.addJoint( "Joint #0" , 45 );
 		final Joint j2 = model.addJoint( "Joint #1" , 90 );
+		j2.setRange( new Range( 270 , 90 ) );
+		
 		final Joint j3 = model.addJoint( "Joint #2" , 90 );
+		j3.setRange( new Range( 270 , 90 ) );
 		
 		model.addBone( "Bone #0", j1,j2 , 25 );
 		model.addBone( "Bone #1", j2, j3 , 25 );

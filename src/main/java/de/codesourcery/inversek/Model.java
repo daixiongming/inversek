@@ -21,6 +21,8 @@ public class Model implements Iterable<Node>
    
    protected static final int FAILURE_RETRY_COUNT = 5;
    
+   private static final int MAX_ITERATIONS = 1000;
+   
    private static final double MIN_CHANGE  = 0.1;
 	
 	private final List<Joint> joints = new ArrayList<>();
@@ -114,16 +116,19 @@ public class Model implements Iterable<Node>
 	public void applyInverseKinematics(Bone bone,Vector2 desiredPosition) 
 	{
 		Outcome result = Outcome.FAILURE;
-		int iterations = 0;
+		int iterations = MAX_ITERATIONS;
 		int retries = FAILURE_RETRY_COUNT;
-		while ( true ) 
+		do 
 		{
 			result = singleIteration( bone , desiredPosition );
-			iterations++;
+			iterations--;
+			
 			if ( result == Outcome.SUCCESS ) {
 				break;
 			}
-			if ( result == Outcome.FAILURE ) {
+			
+			if ( result == Outcome.FAILURE ) 
+			{
 				retries--;
 				if ( retries < 0 ) {
 					break;
@@ -131,8 +136,9 @@ public class Model implements Iterable<Node>
 			} else {
 				retries = FAILURE_RETRY_COUNT;
 			}
-		}
-		System.out.println("RESULT: "+result+" (iterations: "+iterations+")");
+		} while ( iterations > 0 );
+		
+		System.out.println("RESULT: "+result+" (iterations: "+(MAX_ITERATIONS - iterations )+")");
 	}
 	
 	public Outcome singleIteration(Bone bone,Vector2 desiredPosition) 
@@ -194,11 +200,9 @@ public class Model implements Iterable<Node>
 	        // apply rotation
 	        
 	        final double rotDeg = rotAng * (180.0/Math.PI); // convert rad to deg
+			System.out.println("Adjusting "+currentJoint+" by "+rotDeg+" degrees");
 	        currentJoint.addOrientation( (float) rotDeg );
 	        
-			// apply delta
-			System.out.println("Adjusting "+currentJoint+" by "+rotDeg+" degrees");
-			
 			// process next joint
 			if ( currentJoint.successor != null  ) {
 				// recalculate positions

@@ -1,5 +1,7 @@
 package de.codesourcery.inversek;
 
+import javax.swing.text.html.HTMLDocument.HTMLReader.IsindexAction;
+
 import com.badlogic.gdx.math.Vector2;
 
 public class Joint extends Node
@@ -18,33 +20,90 @@ public class Joint extends Node
 	
 	public static final class Range {
 		
-		private final float degStart;
-		private final float degEnd;
+		public final float[] degStart;
+		public final float[] degEnd;
 		
-		public Range(float degStart,float degEnd) {
-			this.degStart = degStart;
-			this.degEnd = degEnd;
+		public Range(float degStart,float degEnd) 
+		{
+			if ( degStart < degEnd ) {
+				this.degStart = new float[]{ degStart };
+				this.degEnd = new float[]  { degEnd   };
+			} else {
+				this.degStart = new float[]{ degStart ,      0 };
+				this.degEnd = new float[]  {      360 , degEnd };
+			}
 		}
 		
-		public float clamp(float value) 
-		{
+		@Override
+		public String toString() {
+			return "Range[ "+degStart+" -> "+degEnd+" ]";
+		}
+		
+		public float getMaxAngleCCW() {
+			if ( this.degStart.length == 1 ) {
+				return this.degEnd[0];
+			}
+			return this.degEnd[1];
+		}
+		
+		public float getMaxAngleCW() {
+			return this.degStart[0];
+		}
+		
+		private float normalize(float value) {
 			while ( value >= 360 ) {
 				value -= 360;
 			}
 			while ( value < 0 ) {
 				value += 360;
 			}
-			if ( value >= degStart && value <= degEnd ) {
+			return value;
+		}
+		
+		public boolean isInRange(float value) 
+		{
+			value = normalize(value);
+
+			for ( int i = 0 ; i < degStart.length ; i++ ) 
+			{
+				if ( value >= degStart[i] && value <= degEnd[i] ) {
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		public float clamp(float value) 
+		{
+			if ( isInRange( value ) ) {
 				return value;
 			}
-			float d1 = Math.abs( value - degStart );
-			float d2 = Math.abs( value - degEnd );
-			if ( d1 < d2 ) {
-				System.out.println("Clamping "+value+" to "+degStart);
-				return degStart;
+			
+			value = normalize(value);
+			
+			float bestValue=value;
+			float bestDelta=Integer.MAX_VALUE;
+			for ( int i = 0 ; i < degStart.length ; i++ ) 
+			{
+				float d1 = Math.abs( value - degStart[i] );
+				float d2 = Math.abs( value - degEnd[i] );
+				if ( d1 < d2 ) 
+				{
+					if ( d1 < bestDelta ) {
+						bestValue = degStart[i];
+						bestDelta = d1;
+					}
+				} 
+				else 
+				{
+					if ( d2 < bestDelta ) {
+						bestValue = degEnd[i];
+						bestDelta = d2;
+					}
+				}
 			}
-			System.out.println("Clamping "+value+" to "+degEnd);
-			return degEnd;
+			System.out.println("Clamping "+value+" to "+bestValue);
+			return bestValue;
 		}
 	}
 	
@@ -108,7 +167,26 @@ public class Joint extends Node
 	
 	public void addOrientation(float degreesDelta) 
 	{
-		setOrientation( this.orientationDegrees + degreesDelta );
+		float newValue = this.orientationDegrees + degreesDelta;
+		if ( range.isInRange( newValue ) ) {
+			setOrientation( newValue );
+			return;
+		}
+		
+		if ( degreesDelta >= 0 ) 
+		{
+			// rotate counter-clockwise
+			float clampedValue = range.getMaxAngleCCW();
+			System.out.println("Illegal rotation by "+degreesDelta+" , current angle is "+this.orientationDegrees+" ,"
+					+ ", result "+newValue+" is not in range "+range+", clamping to "+clampedValue );
+			setOrientation( clampedValue  );
+			return;
+		} 
+		// rotate clockwise
+		float clampedValue = range.getMaxAngleCW();
+		System.out.println("Illegal rotation by "+degreesDelta+" , current angle is "+this.orientationDegrees+" ,"
+				+ ", result "+newValue+" is not in range "+range+", clamping to "+clampedValue);		
+		setOrientation( clampedValue);
 	}	
 	
 	public float getOrientationDegrees() {
