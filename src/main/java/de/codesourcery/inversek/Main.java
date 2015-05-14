@@ -32,7 +32,7 @@ public class Main
 
 		panel.setPreferredSize( new Dimension(640,480 ) );
 
-		final JFrame frame = new JFrame("test");
+		final JFrame frame = new JFrame("Right-click to set motion target, left-click on bone/joint to show details");
 		frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
 
 		frame.getContentPane().add( panel );

@@ -213,11 +213,12 @@ public class Model implements Iterable<Node>
 		return result.equals( Outcome.SUCCESS );
 	}
 
-	public Outcome singleIteration(Bone bone,Vector2 desiredPosition) 
+	public Outcome singleIteration(final Bone bone,Vector2 desiredPosition) 
 	{
-		// locate root joint for this bone
-
 		Joint currentJoint = bone.jointA;
+		
+		/* Code heavily inspired by http://www.ryanjuckett.com/programming/cyclic-coordinate-descent-in-2d/
+		 */
 
 		final float initialDistance = bone.end.dst(desiredPosition);
 		while ( true ) 
@@ -277,7 +278,7 @@ public class Model implements Iterable<Node>
 			}
 			currentJoint.addOrientation( (float) rotDeg );
 
-			// recalculate positions
+			// update bone positions
 			if ( currentJoint.successor != null  ) {
 				currentJoint.successor.forwardKinematics();				
 			}
@@ -296,70 +297,6 @@ public class Model implements Iterable<Node>
 				currentJoint = null;
 			}
 		} 
-
-		/*
-	    // Get the vector from the current bone to the end effector position.
-	        double curToEndX = endX - worldBones[boneIdx].x;
-	        double curToEndY = endY - worldBones[boneIdx].y;
-	        double curToEndMag = Math.Sqrt( curToEndX*curToEndX + curToEndY*curToEndY );
-
-	        // Get the vector from the current bone to the target position.
-	        double curToTargetX = targetX - worldBones[boneIdx].x;
-	        double curToTargetY = targetY - worldBones[boneIdx].y;
-	        double curToTargetMag = Math.Sqrt(   curToTargetX*curToTargetX + curToTargetY*curToTargetY );
-
-	        // Get rotation to place the end effector on the line from the current
-	        // joint position to the target postion.
-	        double cosRotAng;
-	        double sinRotAng;
-	        double endTargetMag = (curToEndMag*curToTargetMag);
-	        if( endTargetMag <= epsilon )
-	        {
-	            cosRotAng = 1;
-	            sinRotAng = 0;
-	        }
-	        else
-	        {
-	            cosRotAng = (curToEndX*curToTargetX + curToEndY*curToTargetY) / endTargetMag;
-	            sinRotAng = (curToEndX*curToTargetY - curToEndY*curToTargetX) / endTargetMag;
-	        }
-
-	        // Clamp the cosine into range when computing the angle (might be out of range
-	        // due to floating point error).
-	        double rotAng = Math.Acos( Math.Max(-1, Math.Min(1,cosRotAng) ) );
-	        if( sinRotAng < 0.0 )
-	            rotAng = -rotAng;
-
-	        // Rotate the end effector position.
-	        endX = worldBones[boneIdx].x + cosRotAng*curToEndX - sinRotAng*curToEndY;
-	        endY = worldBones[boneIdx].y + sinRotAng*curToEndX + cosRotAng*curToEndY;
-
-	        // Rotate the current bone in local space (this value is output to the user)
-	        bones[boneIdx].angle = SimplifyAngle( bones[boneIdx].angle + rotAng );
-
-	        // Check for termination
-	        double endToTargetX = (targetX-endX);
-	        double endToTargetY = (targetY-endY);
-	        if( endToTargetX*endToTargetX + endToTargetY*endToTargetY <= arrivalDistSqr )
-	        {
-	            // We found a valid solution.
-	            return CCDResult.Success;
-	        }
-
-	        // Track if the arc length that we moved the end effector was
-	        // a nontrivial distance.
-	        if( !modifiedBones && Math.Abs(rotAng)*curToEndMag > trivialArcLength )
-	        {
-	            modifiedBones = true;
-	        }
-	    }
-
-	    // We failed to find a valid solution during this iteration.
-	    if( modifiedBones )
-	        return CCDResult.Processing;
-	    else
-	        return CCDResult.Failure;	 
-		 */		
 	}
 
 	public void applyForwardKinematics() 
