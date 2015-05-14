@@ -65,6 +65,12 @@ public final class MyPanel extends JPanel implements ITickListener
 			if ( hoveredNode != n ) {
 				hoveredNode = n;
 			}
+			
+			if ( desiredPosition == null || ! desiredPosition.equals( p ) ) 
+			{
+				desiredPosition = new Point( p );
+				desiredPositionChanged = true;
+			}			
 		}
 	};
 	

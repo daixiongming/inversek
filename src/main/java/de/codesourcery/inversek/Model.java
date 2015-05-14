@@ -119,13 +119,10 @@ public class Model implements Iterable<Node>
 	public Outcome singleIteration(Bone bone,Vector2 desiredPosition) 
 	{
 		// locate root joint for this bone
+		
 		Joint currentJoint = bone.jointA;
-		while ( currentJoint.predecessor != null ) {
-			currentJoint = currentJoint.predecessor.jointA;
-		}
 		
 		final float initialDistance = bone.end.dst(desiredPosition);
-		
 		while ( true ) 
 		{
 			final Bone currentBone = currentJoint == null ? null : currentJoint.successor;
@@ -190,9 +187,9 @@ public class Model implements Iterable<Node>
 			}			
 			
 			
-			if ( currentJoint.successor != null ) 
+			if ( currentJoint.predecessor != null ) 
 			{
-				currentJoint = currentJoint.successor.jointB;
+				currentJoint = currentJoint.predecessor.jointA;
 			} else {
 				currentJoint = null;
 			}
