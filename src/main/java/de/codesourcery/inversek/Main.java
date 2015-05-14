@@ -1,7 +1,6 @@
 package de.codesourcery.inversek;
 
 import java.awt.Dimension;
-import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
 import javax.swing.JFrame;

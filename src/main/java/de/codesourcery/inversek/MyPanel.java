@@ -5,16 +5,12 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.image.BufferedImage;
 
 import javax.swing.JPanel;
 
 import com.badlogic.gdx.math.Vector2;
-
-import de.codesourcery.inversek.Node.NodeType;
 
 public final class MyPanel extends JPanel implements ITickListener
 {
@@ -98,20 +94,17 @@ public final class MyPanel extends JPanel implements ITickListener
 	protected void paintComponent(Graphics g) 
 	{
 		super.paintComponent(g);
-		g.drawImage( getFrontBuffer() , 0 , 0 , null );
+		g.drawImage( getFrontBufferImage() , 0 , 0 , null );
 	}
 	
 	public void render() 
 	{
-		synchronized( model ) 
-		{
-			screenCenterX = getWidth()/2;
-			screenCenterY = getHeight() / 2;
-			clearBackBuffer();
-			model.visit( this::renderNode );
-			renderSelectionInfo();
-			swapBuffers();
-		}
+		screenCenterX = getWidth()/2;
+		screenCenterY = getHeight() / 2;
+		clearBackBuffer();
+		model.visit( this::renderNode );
+		renderSelectionInfo();
+		swapBuffers();
 	}
 
 	private void renderSelectionInfo() 
@@ -263,13 +256,13 @@ public final class MyPanel extends JPanel implements ITickListener
 	
 	private void clearBackBuffer() 
 	{
-		final BufferedImage buffer = getBackBuffer();
+		final BufferedImage buffer = getBackBufferImage();
 		final Graphics2D graphics = getBackBufferGraphics();
 		graphics.setColor( Color.WHITE );
 		graphics.fillRect( 0 , 0 , buffer.getWidth() , buffer.getHeight() );
 	}	
 	
-	private BufferedImage getFrontBuffer() 
+	private BufferedImage getFrontBufferImage() 
 	{
 		maybeInit();
 		return buffers[ (bufferIdx+1) % 2 ];
@@ -281,7 +274,7 @@ public final class MyPanel extends JPanel implements ITickListener
 		return graphics[ bufferIdx % 2 ];
 	}		
 	
-	private BufferedImage getBackBuffer() 
+	private BufferedImage getBackBufferImage() 
 	{
 		maybeInit();
 		return buffers[ bufferIdx % 2 ];
