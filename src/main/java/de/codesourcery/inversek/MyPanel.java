@@ -6,6 +6,7 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 
 import javax.swing.JPanel;
@@ -32,17 +33,29 @@ public final class MyPanel extends JPanel implements ITickListener
 	public Node selectedNode;
 	public Node hoveredNode;
 	
+	public boolean desiredPositionChanged = false;
+	public Point desiredPosition;
+	
 	private final MouseAdapter mouseListener = new MouseAdapter() 
 	{
-		public void mouseClicked(java.awt.event.MouseEvent e) {
-
-			final Point p = e.getPoint();
-			final Node n = getNodeAt( p.x ,p.y );
-			if ( n != null && selectedNode != n ) 
+		public void mouseClicked(java.awt.event.MouseEvent e) 
+		{
+			if ( e.getButton() == MouseEvent.BUTTON1 ) 
 			{
-				selectedNode = n;
-				render();
-				repaint();				
+				final Point p = e.getPoint();
+				final Node n = getNodeAt( p.x ,p.y );
+				if ( n != null && selectedNode != n ) 
+				{
+					selectedNode = n;
+				}
+			} 
+			else if ( e.getButton() == MouseEvent.BUTTON3 ) 
+			{
+				if ( desiredPosition == null || ! desiredPosition.equals( e.getPoint() ) ) 
+				{
+					desiredPosition = new Point( e.getPoint() );
+					desiredPositionChanged = true;
+				}
 			}
 		}
 		public void mouseMoved(java.awt.event.MouseEvent e) 
@@ -51,11 +64,20 @@ public final class MyPanel extends JPanel implements ITickListener
 			final Node n = getNodeAt( p.x ,p.y );
 			if ( hoveredNode != n ) {
 				hoveredNode = n;
-				render();
-				repaint();
 			}
 		}
 	};
+	
+	public Vector2 viewToModel(Point point) {
+		
+		/*
+		viewVector.x = screenCenterX + modelVector.x;
+		viewVector.y = screenCenterY - modelVector.y;		 
+		 */
+		float x = point.x - screenCenterX;
+		float y = screenCenterY - point.y;
+		return new Vector2(x,y);
+	}
 	
 	private Node getNodeAt(int x,int y) 
 	{
@@ -103,8 +125,25 @@ public final class MyPanel extends JPanel implements ITickListener
 		screenCenterY = getHeight() / 2;
 		clearBackBuffer();
 		model.visit( this::renderNode );
+		
 		renderSelectionInfo();
+		
+		renderDesiredPosition();
+		
 		swapBuffers();
+	}
+
+	private void renderDesiredPosition() {
+		
+		if ( desiredPosition == null ) {
+			return;
+		}
+		
+		final Graphics2D graphics = getBackBufferGraphics();
+		
+		graphics.setColor(Color.RED);
+		graphics.drawLine( desiredPosition.x-5 , desiredPosition.y , desiredPosition.x+5, desiredPosition.y );
+		graphics.drawLine( desiredPosition.x , desiredPosition.y-5 , desiredPosition.x, desiredPosition.y+5 );
 	}
 
 	private void renderSelectionInfo() 

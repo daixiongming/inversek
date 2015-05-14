@@ -19,6 +19,10 @@ public class Bone extends Node
 		this.jointB = jointB;
 	}
 	
+	public Vector2 getCenter() {
+		return start.cpy().add( end ).scl( 0.5f );
+	}
+	
 	public void forwardKinematics() 
 	{
 		start.set( jointA.radius + Model.JOINT_BONE_GAP , 0 );

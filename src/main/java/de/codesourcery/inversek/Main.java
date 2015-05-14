@@ -5,6 +5,8 @@ import java.awt.event.KeyEvent;
 
 import javax.swing.JFrame;
 
+import com.badlogic.gdx.math.Vector2;
+
 import de.codesourcery.inversek.Node.NodeType;
 
 public class Main 
@@ -19,6 +21,7 @@ public class Main
 	private final Model model;
 	private final MyPanel panel;
 	private final KeyboardInput input = new KeyboardInput();
+	private final Bone effector;
 
 	public Main() 
 	{
@@ -27,11 +30,10 @@ public class Main
 		final Joint j1 = model.addJoint( "Joint #0" , 45 );
 		final Joint j2 = model.addJoint( "Joint #1" , 90 );
 		final Joint j3 = model.addJoint( "Joint #2" , 90 );
-		final Joint j4 = model.addJoint( "Joint #3" , 90 );
 		
 		model.addBone( "Bone #0", j1,j2 , 25 );
 		model.addBone( "Bone #1", j2, j3 , 25 );
-		model.addBone( "Bone #2", j3, j4 , 25 );
+		effector = model.addBone( "Bone #2", j3, null , 25 );
 
 		model.applyForwardKinematics();
 
@@ -63,6 +65,14 @@ public class Main
 			previous = now;
 
 			processKeyboardInput();
+			
+			if ( panel.desiredPositionChanged ) 
+			{
+				final Vector2 target = panel.viewToModel( panel.desiredPosition );
+				System.out.println("Desired target => view: "+panel.desiredPosition+" (world: "+target+")");
+				model.applyInverseKinematics( effector , target );
+				panel.desiredPositionChanged = false;
+			}
 
 			panel.tick( deltaSeconds );
 
