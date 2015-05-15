@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-  <classpathentry kind="src" path="src/main/java" including="**/*.java"/>
-  <classpathentry kind="output" path="target/classes"/>
-  <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-  <classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx/1.6.0/gdx-1.6.0.jar" sourcepath="M2_REPO/com/badlogicgames/gdx/gdx/1.6.0/gdx-1.6.0-sources.jar"/>
-  <classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx-platform/1.6.0/gdx-platform-1.6.0.jar"/>
+	<classpathentry including="**/*.java" kind="src" path="src/main/java"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx/1.6.0/gdx-1.6.0.jar" sourcepath="M2_REPO/com/badlogicgames/gdx/gdx/1.6.0/gdx-1.6.0-sources.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx-platform/1.6.0/gdx-platform-1.6.0.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx-box2d/1.6.0/gdx-box2d-1.6.0.jar" sourcepath="M2_REPO/com/badlogicgames/gdx/gdx-box2d/1.6.0/gdx-box2d-1.6.0-sources.jar"/>
+	<classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx-box2d-platform/1.6.0/gdx-box2d-platform-1.6.0.jar"/>
+	<classpathentry kind="lib" path="target/desktop"/>
+	<classpathentry kind="output" path="target/classes"/>
 </classpath>

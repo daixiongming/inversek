@@ -8,6 +8,9 @@ import com.badlogic.gdx.math.Vector2;
 
 public class Joint extends Node
 {
+	public static final float JOINT_BONE_GAP = 2f;
+	public static final float JOINT_RADIUS = 7f;
+	
 	private float orientationDegrees = 0;
 	private final Vector2 orientation = new Vector2();
 	
@@ -20,7 +23,7 @@ public class Joint extends Node
 	
 	public MovementRange range = new MovementRange(0,360);
 	
-	public Joint(Joint other,Bone predecessor,Bone successor) 
+	private Joint(Joint other,Bone predecessor,Bone successor) 
 	{
 		super(other.getId(),NodeType.JOINT);
 		this.orientationDegrees = other.orientationDegrees;
@@ -81,6 +84,14 @@ public class Joint extends Node
 						new Interval( 0 , degEnd )
 				}; 
 			}
+		}
+		
+		public float getMinimumAngle() {
+			return intervals[0].start;
+		}
+		
+		public float getMaximumAngle() {
+			return intervals.length == 1 ? intervals[0].end : intervals[1].end;
 		}
 		
 		public MovementRange(MovementRange other) 

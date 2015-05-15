@@ -10,9 +10,9 @@ public class CCDSolver implements ISolver
 
 	private static final double DESIRED_ARRIVAL_DST = 1;
 
-	protected static final int RANDOM_RETRIES = 100;
+	protected static final int RANDOM_RETRIES = 200;
 
-	protected static final int FAILURE_RETRY_COUNT = 50;
+	protected static final int FAILURE_RETRY_COUNT = 100;
 
 	private static final int MAX_ITERATIONS = 100;
 
@@ -128,7 +128,7 @@ public class CCDSolver implements ISolver
 		/* Code heavily inspired by http://www.ryanjuckett.com/programming/cyclic-coordinate-descent-in-2d/
 		 */
 
-		final float initialDistance = lastBone.end.dst(desiredPosition);
+		final float initialDistance = lastBone.getPositioningEnd().dst(desiredPosition);
 		
 		final Vector2 curToEnd= new Vector2();
 		final Vector2 curToTarget = new Vector2();
@@ -139,9 +139,9 @@ public class CCDSolver implements ISolver
 			if ( currentBone == null ) 
 			{
 				// check for termination
-				final float currentDst = lastBone.end.dst2( desiredPosition ); 				
+				final float currentDst = lastBone.getPositioningEnd().dst2( desiredPosition ); 				
 				if ( currentDst <= DESIRED_ARRIVAL_DST*DESIRED_ARRIVAL_DST ) {
-					return constraintValidator.isInvalidConfiguration( chain) ? Outcome.FAILURE : Outcome.SUCCESS;
+					return constraintValidator.isInvalidConfiguration( chain ) ? Outcome.FAILURE : Outcome.SUCCESS;
 				}
 
 				if ( Math.abs( currentDst - initialDistance ) >= MIN_CHANGE ) {
@@ -151,7 +151,7 @@ public class CCDSolver implements ISolver
 			}
 
 			// Get the vector from the current bone to the end effector position.			
-			curToEnd.set( lastBone.end ).sub( currentBone.getCenter() );
+			curToEnd.set( lastBone.getPositioningEnd() ).sub( currentBone.getCenter() );
 			final double curToEndMag = curToEnd.len();
 
 			// Get the vector from the current bone to the target position.
@@ -186,11 +186,16 @@ public class CCDSolver implements ISolver
 			if ( Main.DEBUG ) {
 				System.out.println("Adjusting "+currentJoint+" by "+rotDeg+" degrees");
 			}
-			applyJointRotation(currentJoint, rotDeg,lastBone);
+			currentJoint.addOrientation( (float) rotDeg );
 
+			// update bone positions
+			if ( currentJoint.successor != null  ) {
+				currentJoint.successor.forwardKinematics();				
+			}
+			
 			// check for termination
-			if ( lastBone.end.dst2( desiredPosition ) <= DESIRED_ARRIVAL_DST*DESIRED_ARRIVAL_DST ) {
-				return constraintValidator.isInvalidConfiguration( chain) ? Outcome.FAILURE : Outcome.SUCCESS;
+			if ( lastBone.getPositioningEnd().dst2( desiredPosition ) <= DESIRED_ARRIVAL_DST*DESIRED_ARRIVAL_DST ) {
+				return constraintValidator.isInvalidConfiguration( chain ) ? Outcome.FAILURE : Outcome.SUCCESS;
 			}			
 
 			// process next joint
@@ -201,16 +206,6 @@ public class CCDSolver implements ISolver
 				currentJoint = null;
 			}
 		} 
-	}
-
-	private void applyJointRotation(Joint currentJoint, final double rotDeg,Bone lastBone) 
-	{
-		currentJoint.addOrientation( (float) rotDeg );
-
-		// update bone positions
-		if ( currentJoint.successor != null  ) {
-			currentJoint.successor.forwardKinematics();				
-		}
 	}
 
 	@Override

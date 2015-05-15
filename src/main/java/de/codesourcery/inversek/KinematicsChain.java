@@ -11,9 +11,6 @@ import java.util.stream.StreamSupport;
 
 public class KinematicsChain implements Iterable<Node>
 {
-	public static final float JOINT_BONE_GAP = 3;
-	public static final float JOINT_RADIUS = 10;
-
 	private final List<Joint> joints = new ArrayList<>();
 	private final List<Bone> bones = new ArrayList<>();
 
@@ -169,24 +166,28 @@ public class KinematicsChain implements Iterable<Node>
 		if ( joints.stream().anyMatch( j -> j.getId().equals( id ) ) ) {
 			throw new IllegalArgumentException("Duplicate joint '"+id+"'");
 		}
-		final Joint j = new Joint(id,JOINT_RADIUS,orientation);
+		final Joint j = new Joint(id,Joint.JOINT_RADIUS,orientation);
 		this.joints.add( j );
 		return j;
 	}
 
 	public Bone addBone(String id,Joint a,Joint b,float length) 
 	{
-		if ( bones.stream().anyMatch( j -> j.getId().equals( id ) ) ) {
-			throw new IllegalArgumentException("Duplicate bone '"+id+"'");
-		}
-		
 		final Bone bone = new Bone(id,a,b,length);
-		bones.add( bone );
-		a.setSuccessor( bone );
-		if ( b != null ) {
-			b.setPrecessor( bone );
-		}
+		addBone( bone );
 		return bone;
+	}
+	
+	public void addBone(Bone bone) 
+	{
+		if ( bones.stream().anyMatch( j -> j.getId().equals( bone.getId() ) ) ) {
+			throw new IllegalArgumentException("Duplicate bone '"+bone.getId()+"'");
+		}		
+		bones.add( bone );
+		bone.jointA.setSuccessor( bone );
+		if ( bone.jointB != null ) {
+			bone.jointB.setPrecessor( bone );
+		}
 	}
 
 	public Joint getRootJoint() {

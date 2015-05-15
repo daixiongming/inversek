@@ -4,6 +4,8 @@ import com.badlogic.gdx.math.Vector2;
 
 public class Bone extends Node
 {
+	public static final float BONE_THICKNESS = 2f;
+	
 	public float length;
 	
 	public final Joint jointA;
@@ -19,7 +21,7 @@ public class Bone extends Node
 		this.jointB = jointB;
 	}
 	
-	public Bone(Bone other, Joint jointA, Joint jointB) 
+	protected Bone(Bone other, Joint jointA, Joint jointB) 
 	{
 		super(other.getId(),NodeType.BONE);
 		this.start.set( other.start );
@@ -37,9 +39,13 @@ public class Bone extends Node
 		return start.cpy().add( end ).scl( 0.5f );
 	}
 	
+	public Vector2 getPositioningEnd() {
+		return end;
+	}
+	
 	public void forwardKinematics() 
 	{
-		start.set( jointA.radius + KinematicsChain.JOINT_BONE_GAP , 0 );
+		start.set( jointA.radius + Joint.JOINT_BONE_GAP , 0 );
 		
 		final float orientationDegrees = jointA.getSumOrientationDegrees();
 		
@@ -53,7 +59,7 @@ public class Bone extends Node
 		
 		if ( jointB != null ) 
 		{
-			tmp.set( length + jointB.radius + KinematicsChain.JOINT_BONE_GAP , 0 );
+			tmp.set( length + jointB.radius + Joint.JOINT_BONE_GAP , 0 );
 			tmp.rotate( orientationDegrees );
 			tmp.add( start );
 			jointB.position.set( tmp );
@@ -62,5 +68,5 @@ public class Bone extends Node
 				jointB.successor.forwardKinematics();
 			}
 		}
-	}	
+	}
 }

@@ -5,6 +5,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -13,22 +14,31 @@ import java.awt.image.BufferedImage;
 import javax.swing.JPanel;
 
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Body;
+
+import de.codesourcery.inversek.WorldModel.Ball;
 
 public final class MyPanel extends JPanel implements ITickListener
 {
 	private static final Color JOINT_COLOR = Color.RED;
+	
+	private static final Color BALL_COLOR = Color.GREEN;
+	
+	private static final Color END_BONE_COLOR = Color.BLACK;
 	private static final Color BONE_COLOR = Color.BLUE;
 	
 	protected static final Color SELECTION_COLOR = Color.GREEN;
 	protected static final Color HOVER_COLOR = Color.MAGENTA;
 	
-	private final Model model;
+	private final RobotArm robotModel;
 	
 	private final Object INIT_LOCK = new Object();
 	
 	private boolean initialized = false;
 	
 	private final FPSTracker fpsTracker = new FPSTracker();
+	
+	private final WorldModel worldModel;
 	
 	private final BufferedImage[] buffers = new BufferedImage[2]; 
 	private final Graphics2D[] graphics = new Graphics2D[2];
@@ -37,11 +47,13 @@ public final class MyPanel extends JPanel implements ITickListener
 	private int screenCenterX;
 	private int screenCenterY;
 	
+	public volatile Point addBallAt;
+	
 	public Node selectedNode;
 	public Node hoveredNode;
 	
-	public boolean desiredPositionChanged = false;
-	public Point desiredPosition;
+	public volatile boolean desiredPositionChanged = false;
+	public volatile Point desiredPosition;
 	
 	private final MouseAdapter mouseListener = new MouseAdapter() 
 	{
@@ -56,14 +68,22 @@ public final class MyPanel extends JPanel implements ITickListener
 					selectedNode = n;
 				}
 			} 
-			else if ( e.getButton() == MouseEvent.BUTTON3 ) 
+			else if ( e.getButton() == MouseEvent.BUTTON2 ) 
 			{
-				if ( desiredPosition == null || ! desiredPosition.equals( e.getPoint() ) ) 
+				if ( addBallAt == null )
 				{
-					desiredPosition = new Point( e.getPoint() );
-					desiredPositionChanged = true;
+					addBallAt = new Point( e.getPoint() );
 				}
 			}
+			
+//			else if ( e.getButton() == MouseEvent.BUTTON3 ) 
+//			{
+//				if ( desiredPosition == null || ! desiredPosition.equals( e.getPoint() ) ) 
+//				{
+//					desiredPosition = new Point( e.getPoint() );
+//					desiredPositionChanged = true;
+//				}
+//			}
 		}
 		
 		public void mouseMoved(java.awt.event.MouseEvent e) 
@@ -72,25 +92,20 @@ public final class MyPanel extends JPanel implements ITickListener
 			final Node n = getNodeAt( p.x ,p.y );
 			if ( hoveredNode != n ) {
 				hoveredNode = n;
-			}			
+			}	
+			
+			if ( desiredPosition == null || ! desiredPosition.equals( p ) ) 
+			{
+				desiredPosition = new Point( p );
+				desiredPositionChanged = true;
+			}
 		}
 	};
-	
-	public Vector2 viewToModel(Point point) {
-		
-		/*
-		viewVector.x = screenCenterX + modelVector.x;
-		viewVector.y = screenCenterY - modelVector.y;		 
-		 */
-		float x = point.x - screenCenterX;
-		float y = screenCenterY - point.y;
-		return new Vector2(x,y);
-	}
 	
 	private Node getNodeAt(int x,int y) 
 	{
 		final Rectangle boundingBox = new Rectangle();
-		for ( KinematicsChain chain : model.getChains() ) 
+		for ( KinematicsChain chain : robotModel.getModel().getChains() ) 
 		{
 			final Node n = chain.stream()
 					.filter( node -> 
@@ -106,9 +121,10 @@ public final class MyPanel extends JPanel implements ITickListener
 		return null;
 	}
 	
-	public MyPanel(Model model) 
+	public MyPanel(RobotArm arm,WorldModel worldModel) 
 	{
-		this.model = model;
+		this.robotModel = arm;
+		this.worldModel = worldModel;
 		addMouseListener( mouseListener );
 		addMouseMotionListener( mouseListener );
 		setFocusable(true);
@@ -143,16 +159,13 @@ public final class MyPanel extends JPanel implements ITickListener
 		screenCenterY = getHeight() / 2;
 		clearBackBuffer();
 		
-		model.getChains().forEach( chain -> 
+		// render world
+		renderWorld();
+		
+		// render robot arm
+		robotModel.getModel().getChains().forEach( chain -> 
 		{
 			chain.visit( this::renderNode );
-			
-			// render floor
-			final Vector2 p = new Vector2();
-			modelToView( chain.getRootJoint().position , p);
-			final Graphics2D graphics = getBackBufferGraphics();
-			graphics.setColor(Color.BLACK);
-			graphics.drawLine( 0 , (int) p.y , getWidth() , (int) p.y );
 		});
 		
 		renderFPS( deltaSeconds );
@@ -162,6 +175,34 @@ public final class MyPanel extends JPanel implements ITickListener
 		renderDesiredPosition();
 		
 		swapBuffers();
+	}
+	
+	private void renderWorld() {
+		
+		// render floor
+		final Vector2 p = new Vector2();
+		modelToView( new Vector2(0,worldModel.getFloorY()) , p);
+		
+		final Graphics2D graphics = getBackBufferGraphics();
+		graphics.setColor(Color.BLACK);
+		graphics.drawLine( 0 , (int) p.y , getWidth() , (int) p.y );
+		
+		// render robot arm base
+		final Body robotBase = robotModel.getBase();
+		final Vector2 scrCoords = new Vector2(); 
+		modelToView( robotBase.getPosition() , scrCoords );
+		
+		graphics.fillRect( (int) ( scrCoords.x - RobotArm.ROBOTBASE_WIDTH/2),
+				(int) (scrCoords.y - RobotArm.ROBOTBASE_HEIGHT/2) , (int) RobotArm.ROBOTBASE_WIDTH, (int) RobotArm.ROBOTBASE_HEIGHT );
+		
+		// render world objects
+		worldModel.getBalls().forEach( this::renderBall );
+	}
+	
+	private void renderBall(Ball ball) 
+	{
+		getBackBufferGraphics().setColor( BALL_COLOR );
+		renderCircle( ball.getPosition() , ball.radius );
 	}
 	
 	private void renderFPS(float deltaSeconds) 
@@ -228,28 +269,38 @@ public final class MyPanel extends JPanel implements ITickListener
 		return true;
 	}
 
-	private void renderJoint(Joint n) 
+	private void renderJoint(Joint joint) 
+	{
+		getBackBufferGraphics().setColor( getNodeColor(joint,JOINT_COLOR) );
+		renderCircle( joint.position , joint.radius );
+	}
+	
+	private void renderCircle(Vector2 modelCenterCoords,float modelRadius) 
 	{
 		final Vector2 screenPos = new Vector2();
-		modelToView( n.position , screenPos );
+		modelToView( modelCenterCoords , screenPos );
 		
 		final float centerX = screenPos.x;
 		final float centerY = screenPos.y;
 		
 		// transform radius
-		screenPos.x = n.radius;
-		screenPos.y = 0;
+		screenPos.x = modelRadius;
+		screenPos.y = modelRadius;
 		modelToView( screenPos , screenPos );
 		
-		final float dx = screenPos.x - screenCenterX;
-		final float dy = screenPos.y - screenCenterY;
+		final float dx = screenPos.x - (float) screenCenterX;
+		final float dy = screenCenterY - screenPos.y;
 		
-		final float scrRadius = (float) Math.sqrt( dx*dx + dy*dy );
+		final float radWidth = dx*2f;
+		final float radHeight = dy*2f;
 		
 		final Graphics2D graphics = getBackBufferGraphics();
 		
-		graphics.setColor( getNodeColor(n,JOINT_COLOR) );
-		graphics.fillArc( (int) ( centerX - scrRadius/2) ,(int) (centerY-scrRadius/2) , (int) scrRadius, (int) scrRadius, 0 , 360 );
+		graphics.fillArc( (int) ( centerX - radWidth/2f) ,(int) (centerY-radHeight/2f) , (int) radWidth , (int) radHeight, 0 , 360 );
+		
+		graphics.setColor(Color.BLACK);
+		graphics.drawLine( (int) centerX -5 , (int)centerY , (int)centerX + 5 , (int)centerY );
+		graphics.drawLine( (int) centerX , (int)centerY-5 , (int)centerX , (int)centerY+5 );
 	}
 	
 	private Color getNodeColor(Node n,Color regular) {
@@ -285,22 +336,67 @@ public final class MyPanel extends JPanel implements ITickListener
 		r.width = r.height = (int) scrRadius;
 	}
 	
-	private void renderBone(Bone n) 
+	private void renderBone(Bone bone) 
 	{
 		final Vector2 screenPos = new Vector2();
-		modelToView( n.start , screenPos );
+		modelToView( bone.start , screenPos );
 		
 		final float p0X = screenPos.x;
 		final float p0Y = screenPos.y;
 		
-		modelToView( n.end , screenPos );
+		modelToView( bone.end , screenPos );
 		
 		final float p1X = screenPos.x;
 		final float p1Y = screenPos.y;		
 		
 		final Graphics2D graphics = getBackBufferGraphics();
-		graphics.setColor( getNodeColor(n,BONE_COLOR) );
-		graphics.drawLine( (int) p0X , (int) p0Y,(int) p1X,(int) p1Y);
+		
+		if ( bone instanceof Gripper) 
+		{
+			final Gripper gripper = (Gripper) bone;
+			
+			// end bone
+			graphics.setColor( getNodeColor(bone,END_BONE_COLOR) );
+			graphics.drawLine( (int) p0X , (int) p0Y,(int) p1X,(int) p1Y);
+			
+			Vector2 rot = bone.start.cpy().sub( bone.end ).nor().rotate(90);
+			
+			final float basePlateLength = gripper.getCurrentBaseplateLength();
+			Vector2 plate1 = bone.end.cpy().add( rot.cpy().scl( basePlateLength ) );
+			Vector2 plate2 = bone.end.cpy().add( rot.cpy().scl( -basePlateLength ) );
+			
+			modelToView( plate1 , screenPos );
+			final float p2X = screenPos.x;
+			final float p2Y = screenPos.y;
+			
+			modelToView( plate2 , screenPos );
+			final float p3X = screenPos.x;
+			final float p3Y = screenPos.y;			
+			
+			graphics.drawLine( (int) p2X , (int) p2Y,(int) p3X,(int) p3Y);		
+			
+			rot = bone.end.cpy().sub( bone.start ).nor().scl( gripper.getClawLength() );
+			
+			plate1.add( rot );
+			plate2.add( rot );
+			
+			modelToView( plate1 , screenPos );
+			final float p4X = screenPos.x;
+			final float p4Y = screenPos.y;
+			
+			modelToView( plate2 , screenPos );
+			final float p5X = screenPos.x;
+			final float p5Y = screenPos.y;			
+			
+			graphics.drawLine( (int) p2X , (int) p2Y,(int) p4X,(int) p4Y);		
+			graphics.drawLine( (int) p3X , (int) p3Y,(int) p5X,(int) p5Y);		
+					
+			
+		} else if ( bone.jointB != null ) 
+		{
+			graphics.setColor( getNodeColor(bone,BONE_COLOR) );
+			graphics.drawLine( (int) p0X , (int) p0Y,(int) p1X,(int) p1Y);
+		} 
 	}
 	
 	private void getBoundingBox(Bone bone,Rectangle r) 
@@ -324,6 +420,17 @@ public final class MyPanel extends JPanel implements ITickListener
 		r.width = Math.abs( (int) (p1X - p0X) );
 		r.height = Math.abs( (int) (p1Y - p0Y) );
 	}
+	
+	public Vector2 viewToModel(Point point) {
+		
+		/*
+		viewVector.x = screenCenterX + modelVector.x;
+		viewVector.y = screenCenterY - modelVector.y;		 
+		 */
+		float x = point.x - screenCenterX;
+		float y = screenCenterY - point.y;
+		return new Vector2(x,y);
+	}	
 	
 	private void modelToView(Vector2 modelVector,Vector2 viewVector) 
 	{
@@ -379,6 +486,12 @@ public final class MyPanel extends JPanel implements ITickListener
 				buffers[1] = new BufferedImage( getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
 				graphics[0] = buffers[0].createGraphics();
 				graphics[1] = buffers[1].createGraphics();
+				
+				graphics[0].getRenderingHints().put( RenderingHints.KEY_ANTIALIASING , RenderingHints.VALUE_ANTIALIAS_ON );
+				graphics[0].getRenderingHints().put( RenderingHints.KEY_RENDERING , RenderingHints.VALUE_RENDER_QUALITY);
+				graphics[1].getRenderingHints().put( RenderingHints.KEY_ANTIALIASING , RenderingHints.VALUE_ANTIALIAS_ON );
+				graphics[1].getRenderingHints().put( RenderingHints.KEY_RENDERING , RenderingHints.VALUE_RENDER_QUALITY);
+				
 				initialized = true;
 				render(1);
 			}

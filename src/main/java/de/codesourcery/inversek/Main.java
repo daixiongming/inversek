@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import javax.swing.JFrame;
 
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Box2D;
 
 public class Main 
 {
@@ -16,6 +17,7 @@ public class Main
 		new Main().run();
 	}
 
+	private final WorldModel worldModel;
 	private final RobotArm robotArm;
 	
 	private final MyPanel panel;
@@ -23,10 +25,16 @@ public class Main
 
 	public Main() 
 	{
-		robotArm = new RobotArm();
-		panel = new MyPanel( robotArm.getModel() );
+		Box2D.init();
+		
+		worldModel = new WorldModel();
+		
+		robotArm = new RobotArm( worldModel );
+		
+		panel = new MyPanel( robotArm , worldModel );
 		
 		listenerContainer.add( robotArm );
+		listenerContainer.add( worldModel );
 	}
 
 	public void run() {
@@ -47,17 +55,28 @@ public class Main
 		float sumSeconds=0;
 		while ( true ) 
 		{
-			long now = System.currentTimeMillis();
-			float deltaSeconds = (now - previous)/1000f;
+			final long now = System.currentTimeMillis();
+			final float deltaSeconds = (now - previous)/1000f;
 			sumSeconds += deltaSeconds;
 			previous = now;
 
+			if ( panel.addBallAt != null ) 
+			{
+				Vector2 modelCoords = panel.viewToModel( panel.addBallAt );
+				if ( modelCoords.y > 0 ) {
+					worldModel.addBall( modelCoords.x , modelCoords.y );
+				}
+				panel.addBallAt = null;
+			}
+			
 			if ( panel.desiredPositionChanged ) 
 			{
-				robotArm.moveArm( panel.viewToModel( panel.desiredPosition ) );
-				panel.desiredPositionChanged = false;				
+				if ( robotArm.moveArm( panel.viewToModel( panel.desiredPosition ) ) ) {
+					// System.err.println("Arm has not finished moving yet");
+					panel.desiredPositionChanged = false;
+				}
 			}
-
+			
 			listenerContainer.tick( deltaSeconds );
 			
 			if ( sumSeconds >= 1.0f/DESIRED_FPS ) 

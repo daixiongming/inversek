@@ -6,6 +6,7 @@
   <properties>
     <classToRun>de.codesourcery.inversek.Main</classToRun>
     <libgdx.version>1.6.0</libgdx.version>
+    <libgdx.box2d.baseUrl>http://libgdx.badlogicgames.com/nightlies/dist/extensions/gdx-box2d</libgdx.box2d.baseUrl>
   </properties>
   <dependencies>
     <dependency>
@@ -18,9 +19,88 @@
       <artifactId>gdx-platform</artifactId>
       <version>${libgdx.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.badlogicgames.gdx</groupId>
+      <artifactId>gdx-box2d</artifactId>
+      <version>${libgdx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.badlogicgames.gdx</groupId>
+      <artifactId>gdx-box2d-platform</artifactId>
+      <version>${libgdx.version}</version>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
+      <!-- first download an unpack the native libraries -->
+      <plugin>
+        <groupId>com.googlecode.maven-download-plugin</groupId>
+        <artifactId>maven-download-plugin</artifactId>
+        <version>1.1.0</version>
+        <executions>
+          <execution>
+            <id>desktop</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <configuration>
+              <cacheDirectory>${project.build.directory}/download-cache</cacheDirectory>
+              <url>${libgdx.box2d.baseUrl}/gdx-box2d-natives.jar</url>
+              <unpack>true</unpack>
+              <outputDirectory>${project.build.directory}/desktop</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>x86-gdx</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <configuration>
+              <cacheDirectory>${project.build.directory}/download-cache/x86</cacheDirectory>
+              <url>${libgdx.box2d.baseUrl}/x86/libgdx-box2d.so</url>
+              <outputDirectory>${project.build.directory}/x86</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>armeabi-gdx</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <configuration>
+              <cacheDirectory>${project.build.directory}/download-cache/armeabi</cacheDirectory>
+              <url>${libgdx.box2d.baseUrl}/armeabi/libgdx-box2d.so</url>
+              <outputDirectory>${project.build.directory}/armeabi</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>armeabi-v7a-gdx</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <configuration>
+              <cacheDirectory>${project.build.directory}/download-cache/armeabi-v7a</cacheDirectory>
+              <url>${libgdx.box2d.baseUrl}/armeabi-v7a/libgdx-box2d.so</url>
+              <outputDirectory>${project.build.directory}/armeabi-v7a</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>ios-gdx</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>wget</goal>
+            </goals>
+            <configuration>
+              <cacheDirectory>${project.build.directory}/download-cache/ios</cacheDirectory>
+              <url>${libgdx.box2d.baseUrl}/ios/libgdx-box2d.a</url>
+              <outputDirectory>${project.build.directory}/ios</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>

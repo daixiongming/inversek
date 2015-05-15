@@ -1,5 +1,7 @@
 package de.codesourcery.inversek;
 
+import com.badlogic.gdx.physics.box2d.Body;
+
 
 public abstract class Node 
 {
@@ -10,6 +12,7 @@ public abstract class Node
 	
 	private NodeType type;
 	private String id;
+	private Body body;
 	
 	public Node(String id,NodeType type) {
 		if (type == null) {
@@ -28,6 +31,14 @@ public abstract class Node
 	
 	public final NodeType getType() {
 		return this.type;
+	}
+	
+	public void setBody(Body body) {
+		this.body = body;
+	}
+	
+	public Body getBody() {
+		return body;
 	}
 	
 	@Override
