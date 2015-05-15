@@ -1,6 +1,7 @@
 package de.codesourcery.inversek;
 
 import java.util.Arrays;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 import com.badlogic.gdx.math.Vector2;
@@ -57,6 +58,12 @@ public class Joint extends Node
 		@Override
 		public String toString() {
 			return "["+start+","+end+"]";
+		}
+
+		public float getRandomValue(Random rnd) 
+		{
+			final float range = end-start;
+			return start+rnd.nextFloat()*range;
 		}
 	}
 	
@@ -160,6 +167,12 @@ public class Joint extends Node
 			}
 			System.out.println("Clamping "+value+" to "+bestValue);
 			return bestValue;
+		}
+
+		public float getRandomValue(Random rnd) 
+		{
+			final int idx = rnd.nextInt( intervals.length );
+			return intervals[idx].getRandomValue(rnd);
 		}
 	}
 	
@@ -266,5 +279,9 @@ public class Joint extends Node
 	@Override
 	public String toString() {
 		return "Joint "+getId()+" , angle "+this.orientationDegrees+", "+this.range;
+	}
+	
+	public void setRandomOrientation(Random rnd) {
+		setOrientation( range.getRandomValue(rnd) );
 	}
 }

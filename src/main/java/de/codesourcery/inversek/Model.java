@@ -5,6 +5,7 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Random;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -18,12 +19,16 @@ public class Model implements Iterable<Node>
 	private static final double EPSILON = 0.0001; 
 
 	private static final double DESIRED_ARRIVAL_DST = 1;
+	
+	protected static final int RANDOM_RETRIES = 10;
 
 	protected static final int FAILURE_RETRY_COUNT = 50;
 
 	private static final int MAX_ITERATIONS = 5000;
 
 	private static final double MIN_CHANGE  = 0.01;
+	
+	private final Random rnd = new Random(System.currentTimeMillis());
 
 	private final List<Joint> joints = new ArrayList<>();
 	private final List<Bone> bones = new ArrayList<>();
@@ -186,6 +191,18 @@ public class Model implements Iterable<Node>
 
 	public boolean applyInverseKinematics(Bone bone,Vector2 desiredPosition) 
 	{
+		for ( int i = RANDOM_RETRIES ; i > 0 ; i-- ) 
+		{
+			if ( doApplyInverseKinematics(bone, desiredPosition) ) {
+				return true;
+			}
+			setRandomJointPositions();
+		} 
+		return false;
+	}
+	
+	private boolean doApplyInverseKinematics(Bone bone,Vector2 desiredPosition) 
+	{
 		Outcome result = Outcome.FAILURE;
 		int iterations = MAX_ITERATIONS;
 		int retries = FAILURE_RETRY_COUNT;
@@ -309,4 +326,9 @@ public class Model implements Iterable<Node>
 			}
 		}
 	}	
+	
+	public void setRandomJointPositions() 
+	{
+		joints.forEach( joint -> joint.setRandomOrientation( rnd ) );
+	}
 }
