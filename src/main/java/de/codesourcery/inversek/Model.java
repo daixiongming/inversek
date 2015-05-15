@@ -20,7 +20,9 @@ public class Model implements Iterable<Node>
 
 	private static final double DESIRED_ARRIVAL_DST = 1;
 	
-	protected static final int RANDOM_RETRIES = 10;
+	protected static final boolean CONSTRAINT_MOVEMENT = false;
+	
+	protected static final int RANDOM_RETRIES = 100;
 
 	protected static final int FAILURE_RETRY_COUNT = 50;
 
@@ -230,21 +232,21 @@ public class Model implements Iterable<Node>
 		return result.equals( Outcome.SUCCESS );
 	}
 
-	public Outcome singleIteration(final Bone bone,Vector2 desiredPosition) 
+	public Outcome singleIteration(final Bone lastBone,Vector2 desiredPosition) 
 	{
-		Joint currentJoint = bone.jointA;
+		Joint currentJoint = lastBone.jointA;
 		
 		/* Code heavily inspired by http://www.ryanjuckett.com/programming/cyclic-coordinate-descent-in-2d/
 		 */
 
-		final float initialDistance = bone.end.dst(desiredPosition);
+		final float initialDistance = lastBone.end.dst(desiredPosition);
 		while ( true ) 
 		{
 			final Bone currentBone = currentJoint == null ? null : currentJoint.successor;
 			if ( currentBone == null ) 
 			{
 				// check for termination
-				final float currentDst = bone.end.dst( desiredPosition ); 				
+				final float currentDst = lastBone.end.dst( desiredPosition ); 				
 				if ( currentDst <= DESIRED_ARRIVAL_DST ) {
 					System.out.println("Arrived at destination");
 					return Outcome.SUCCESS;
@@ -257,7 +259,7 @@ public class Model implements Iterable<Node>
 			}
 
 			// Get the vector from the current bone to the end effector position.			
-			final Vector2 curToEnd = bone.end.cpy().sub( currentBone.getCenter() );
+			final Vector2 curToEnd = lastBone.end.cpy().sub( currentBone.getCenter() );
 			final double curToEndMag = curToEnd.len();
 
 			// Get the vector from the current bone to the target position.
@@ -293,15 +295,10 @@ public class Model implements Iterable<Node>
 			if ( Main.DEBUG ) {
 				System.out.println("Adjusting "+currentJoint+" by "+rotDeg+" degrees");
 			}
-			currentJoint.addOrientation( (float) rotDeg );
-
-			// update bone positions
-			if ( currentJoint.successor != null  ) {
-				currentJoint.successor.forwardKinematics();				
-			}
+			applyJointRotation(currentJoint, rotDeg,lastBone);
 
 			// check for termination
-			if ( bone.end.dst( desiredPosition ) <= DESIRED_ARRIVAL_DST ) {
+			if ( lastBone.end.dst( desiredPosition ) <= DESIRED_ARRIVAL_DST ) {
 				System.out.println("Arrived at destination");
 				return Outcome.SUCCESS;
 			}			
@@ -316,6 +313,46 @@ public class Model implements Iterable<Node>
 		} 
 	}
 
+	private void applyJointRotation(Joint currentJoint, final double rotDeg,Bone lastBone) 
+	{
+		final float oldRotation = currentJoint.getOrientationDegrees();
+		
+		currentJoint.addOrientation( (float) rotDeg );
+
+		// update bone positions
+		if ( currentJoint.successor != null  ) {
+			currentJoint.successor.forwardKinematics();				
+		}
+		
+		if ( CONSTRAINT_MOVEMENT && ! isValidConfiguration(lastBone) ) 
+		{
+			currentJoint.addOrientation( oldRotation );
+
+			// update bone positions
+			if ( currentJoint.successor != null  ) {
+				currentJoint.successor.forwardKinematics();				
+			}			
+		}
+	}
+	
+	private boolean isValidConfiguration(Bone endBone) 
+	{
+		float y = getRootJoint().position.y;
+		if ( joints.stream().anyMatch( joint -> joint.position.y < y ) ) {
+			return false;
+		}
+		return endBone.end.y >= y;
+	}
+
+	public Joint getRootJoint() {
+		for (Joint j : joints ) {
+			if ( ! j.hasPredecessor() ) {
+				return j;
+			}
+		}
+		throw new RuntimeException("Internal error,no root joint?");
+	}
+	
 	public void applyForwardKinematics() 
 	{
 		for ( Joint j : joints ) 
