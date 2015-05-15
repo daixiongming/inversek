@@ -5,6 +5,12 @@ This program animates a little robot arm using cyclic coordinate descent. Many t
 
 ![](https://github.com/toby1984/inversek/blob/master/screenshot.png?raw=true "")
 
-# Building& Running
+# Building
 
-    mvn package exec:java
+    mvn package
+
+This will create a self-executable JAR in target/inversek.jar
+
+# Running
+
+java -jar target/inversek.jar
