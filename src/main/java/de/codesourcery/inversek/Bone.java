@@ -39,7 +39,7 @@ public class Bone extends Node
 	
 	public void forwardKinematics() 
 	{
-		start.set( jointA.radius + Model.JOINT_BONE_GAP , 0 );
+		start.set( jointA.radius + KinematicsChain.JOINT_BONE_GAP , 0 );
 		
 		final float orientationDegrees = jointA.getSumOrientationDegrees();
 		
@@ -53,7 +53,7 @@ public class Bone extends Node
 		
 		if ( jointB != null ) 
 		{
-			tmp.set( length + jointB.radius + Model.JOINT_BONE_GAP , 0 );
+			tmp.set( length + jointB.radius + KinematicsChain.JOINT_BONE_GAP , 0 );
 			tmp.rotate( orientationDegrees );
 			tmp.add( start );
 			jointB.position.set( tmp );

@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.badlogic.gdx.math.Vector2;
 
+import de.codesourcery.inversek.ISolver.Outcome;
 import de.codesourcery.inversek.Joint.MovementRange;
 
 public class RobotArm implements ITickListener {
@@ -110,30 +111,33 @@ public class RobotArm implements ITickListener {
 	
 	public RobotArm() 
 	{
-		model = new Model();
+		KinematicsChain chain = new KinematicsChain();
 
-		final Joint j1 = model.addJoint( "Joint #0" , 45 );
-		final Joint j2 = model.addJoint( "Joint #1" , 90 );
-		final Joint j3 = model.addJoint( "Joint #2" , 90 );
-		final Joint j4 = model.addJoint( "Joint #4" , 90 );
+		final Joint j1 = chain.addJoint( "Joint #0" , 45 );
+		final Joint j2 = chain.addJoint( "Joint #1" , 90 );
+		final Joint j3 = chain.addJoint( "Joint #2" , 90 );
+		final Joint j4 = chain.addJoint( "Joint #4" , 90 );
 		
 		j2.setRange( new MovementRange( 270 , 90 ) );
 		j3.setRange( new MovementRange( 270 , 90 ) );
 		j4.setRange( new MovementRange( 270 , 90 ) );
 		
-		model.addBone( "Bone #0", j1,j2 , 25 );
-		model.addBone( "Bone #1", j2, j3 , 25 );
-		model.addBone( "Bone #2", j3, j4 , 25 );
+		chain.addBone( "Bone #0", j1,j2 , 25 );
+		chain.addBone( "Bone #1", j2, j3 , 25 );
+		chain.addBone( "Bone #2", j3, j4 , 25 );
 		
-		effector = model.addBone( "Bone #3", j4, null , 25 );
+		effector = chain.addBone( "Bone #3", j4, null , 25 );
 
-		model.applyForwardKinematics();
+		chain.applyForwardKinematics();
 		
-		model.visitJoints( joint -> 
+		chain.visitJoints( joint -> 
 		{ 
 			actuators.put( joint.getId() , new Actuator((Joint) joint) );
 			return true;
 		});
+		
+		model = new Model();
+		model.addKinematicsChain( chain );
 	}
 	
 	public Model getModel() {
@@ -147,9 +151,16 @@ public class RobotArm implements ITickListener {
 			return false;
 		}
 		
-		final Model m = this.model.createCopy();
+		final KinematicsChain m = this.model.getChains().get(0).createCopy();
 		
-		if ( m.applyInverseKinematics( m.getBoneByID( effector.getId() ) , desiredPoint ) )
+		CCDSolver solver = new CCDSolver(m, m.getEndBone() , desiredPoint);
+		
+		ISolver.Outcome outcome;
+		do {
+			outcome = solver.solve();
+		} while ( outcome == Outcome.PROCESSING );
+		
+		if ( outcome == Outcome.SUCCESS )
 		{
 			m.visitJoints( joint -> 
 			{
@@ -175,7 +186,7 @@ public class RobotArm implements ITickListener {
 	public boolean tick(float deltaSeconds) 
 	{
 		actuators.values().forEach( act -> act.tick( deltaSeconds ) );
-		model.applyForwardKinematics();
+		model.getChains().forEach( chain -> chain.applyForwardKinematics() );
 		return true;
 	}
 }

@@ -87,11 +87,20 @@ public final class MyPanel extends JPanel implements ITickListener
 	private Node getNodeAt(int x,int y) 
 	{
 		final Rectangle boundingBox = new Rectangle();
-		return model.stream().filter( node -> 
+		for ( KinematicsChain chain : model.getChains() ) 
 		{
-			getBoundingBox( node , boundingBox );
-			return boundingBox.contains( x,y );
-		}).findFirst().orElse( null );
+			final Node n = chain.stream()
+					.filter( node -> 
+					{
+						getBoundingBox( node , boundingBox );
+						return boundingBox.contains( x,y );
+					})
+					.findFirst().orElse( null );
+			if ( n != null ) {
+				return n;
+			}
+		}
+		return null;
 	}
 	
 	public MyPanel(Model model) 
@@ -129,7 +138,7 @@ public final class MyPanel extends JPanel implements ITickListener
 		screenCenterX = getWidth()/2;
 		screenCenterY = getHeight() / 2;
 		clearBackBuffer();
-		model.visit( this::renderNode );
+		model.getChains().forEach( chain -> chain.visit( this::renderNode ) );
 		
 		renderSelectionInfo();
 		
