@@ -8,7 +8,9 @@ public interface ISolver {
 		PROCESSING,SUCCESS,FAILURE;
 	}
 	
-	public Outcome solve(); 
+	public Outcome solve(int maxIterations); 
+	
+	public KinematicsChain getChain();
 	
 	public boolean hasFinished();
 }

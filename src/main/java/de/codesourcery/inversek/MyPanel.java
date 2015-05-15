@@ -5,6 +5,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
@@ -26,6 +27,8 @@ public final class MyPanel extends JPanel implements ITickListener
 	private final Object INIT_LOCK = new Object();
 	
 	private boolean initialized = false;
+	
+	private final FPSTracker fpsTracker = new FPSTracker();
 	
 	private final BufferedImage[] buffers = new BufferedImage[2]; 
 	private final Graphics2D[] graphics = new Graphics2D[2];
@@ -131,20 +134,29 @@ public final class MyPanel extends JPanel implements ITickListener
 	{
 		super.paintComponent(g);
 		g.drawImage( getFrontBufferImage() , 0 , 0 , null );
+		Toolkit.getDefaultToolkit().sync();
 	}
 	
-	public void render() 
+	public void render(float deltaSeconds) 
 	{
 		screenCenterX = getWidth()/2;
 		screenCenterY = getHeight() / 2;
 		clearBackBuffer();
 		model.getChains().forEach( chain -> chain.visit( this::renderNode ) );
 		
+		renderFPS( deltaSeconds );
+		
 		renderSelectionInfo();
 		
 		renderDesiredPosition();
 		
 		swapBuffers();
+	}
+	
+	private void renderFPS(float deltaSeconds) 
+	{
+		fpsTracker.renderFPS( deltaSeconds );
+		getBackBufferGraphics().drawImage( fpsTracker.getImage() , 100, 100 , null );
 	}
 
 	private void renderDesiredPosition() {
@@ -356,7 +368,7 @@ public final class MyPanel extends JPanel implements ITickListener
 				graphics[0] = buffers[0].createGraphics();
 				graphics[1] = buffers[1].createGraphics();
 				initialized = true;
-				render();
+				render(1);
 			}
 		}
 	}
@@ -364,7 +376,7 @@ public final class MyPanel extends JPanel implements ITickListener
 	@Override
 	public boolean tick(float deltaSeconds) 
 	{
-		render();
+		render(deltaSeconds);
 		repaint();
 		return true;
 	}	

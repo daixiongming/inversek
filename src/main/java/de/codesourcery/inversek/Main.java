@@ -42,7 +42,7 @@ public class Main
 
 		// main loop
 
-		long previous = System.currentTimeMillis();
+		long previous = System.currentTimeMillis()-15;
 		while ( true ) 
 		{
 			long now = System.currentTimeMillis();
@@ -52,11 +52,7 @@ public class Main
 			if ( panel.desiredPositionChanged ) 
 			{
 				final Vector2 target = panel.viewToModel( panel.desiredPosition );
-				if ( robotArm.moveArm( target ) ) {
-					System.out.println("Desired target => view: "+panel.desiredPosition+" (world: "+target+")");					
-				} else {
-					System.err.println("Arm refused to move to "+target);
-				}
+				robotArm.moveArm( target );
 				panel.desiredPositionChanged = false;				
 			}
 

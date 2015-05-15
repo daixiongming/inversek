@@ -4,8 +4,6 @@ import java.util.Random;
 
 import com.badlogic.gdx.math.Vector2;
 
-import de.codesourcery.inversek.ISolver.Outcome;
-
 public class CCDSolver implements ISolver 
 {
 	private static final double EPSILON = 0.0001; 
@@ -18,7 +16,7 @@ public class CCDSolver implements ISolver
 
 	protected static final int FAILURE_RETRY_COUNT = 50;
 
-	private static final int MAX_ITERATIONS = 5000;
+	private static final int MAX_ITERATIONS = 100;
 
 	private static final double MIN_CHANGE  = 0.01;
 
@@ -35,10 +33,10 @@ public class CCDSolver implements ISolver
 	private int retries = FAILURE_RETRY_COUNT;
 	private int randomRetriesLeft = RANDOM_RETRIES;
 
-	public CCDSolver(KinematicsChain chain, Bone endBone, Vector2 desiredPosition) {
+	public CCDSolver(KinematicsChain chain,Vector2 desiredPosition) {
 		this.chain = chain;
-		this.endBone = endBone;
-		this.desiredPosition = desiredPosition;
+		this.endBone = chain.getEndBone();
+		this.desiredPosition = desiredPosition.cpy();
 	}
 
 	@Override
@@ -47,27 +45,33 @@ public class CCDSolver implements ISolver
 	}
 
 	@Override
-	public Outcome solve() 
+	public Outcome solve(int maxIterations) 
 	{
 		if ( finalResult != null ) {
 			return finalResult;
 		}
-		final Outcome outcome = doApplyInverseKinematics(endBone, desiredPosition);
-		switch(outcome)
+		Outcome outcome = Outcome.FAILURE;
+		for ( int i = maxIterations ; i > 0 ; i--) 
 		{
-			case FAILURE:
-				if ( randomRetriesLeft > 0 ) {
+			outcome = doApplyInverseKinematics(endBone, desiredPosition);
+			switch(outcome)
+			{
+				case FAILURE:
+					if ( randomRetriesLeft-- <= 0 ) {
+						finalResult = Outcome.FAILURE;
+						return Outcome.FAILURE;						
+					}
 					restartFromRandomPosition();
-					return Outcome.PROCESSING;
-				}
-				finalResult = Outcome.FAILURE;
-				break;
-			case PROCESSING:
-				break;
-			case SUCCESS:
-				break;
-			default:
-				throw new RuntimeException("Unhandled switch/case: "+outcome);
+					outcome = Outcome.PROCESSING;
+					break;
+				case PROCESSING:
+					break;
+				case SUCCESS:
+					finalResult = Outcome.SUCCESS;
+					return outcome;
+				default:
+					throw new RuntimeException("Unhandled switch/case: "+outcome);
+			}
 		}
 		return outcome;
 	}
@@ -103,7 +107,7 @@ public class CCDSolver implements ISolver
 		}
 	}
 
-	public Outcome singleIteration(final Bone lastBone,Vector2 desiredPosition) 
+	private Outcome singleIteration(final Bone lastBone,Vector2 desiredPosition) 
 	{
 		Joint currentJoint = lastBone.jointA;
 
@@ -213,5 +217,10 @@ public class CCDSolver implements ISolver
 			return false;
 		}
 		return endBone.end.y >= y;
+	}
+
+	@Override
+	public KinematicsChain getChain() {
+		return chain;
 	}	
 }

@@ -16,8 +16,8 @@ public class RobotArm implements ITickListener {
 	private static final float EPSILON = 0.5f;
 	
 	private final Model model;
-	private final Bone effector;
-	
+	private float solveTimeSecs;
+	private ISolver currentSolver;
 	private final Map<String,Actuator> actuators = new HashMap<>();
 	
 	protected static final class ActuatorMover implements ITickListener 
@@ -125,8 +125,7 @@ public class RobotArm implements ITickListener {
 		chain.addBone( "Bone #0", j1,j2 , 25 );
 		chain.addBone( "Bone #1", j2, j3 , 25 );
 		chain.addBone( "Bone #2", j3, j4 , 25 );
-		
-		effector = chain.addBone( "Bone #3", j4, null , 25 );
+		chain.addBone( "Bone #3", j4, null , 25 );
 
 		chain.applyForwardKinematics();
 		
@@ -144,47 +143,57 @@ public class RobotArm implements ITickListener {
 		return model;
 	}
 	
-	public boolean moveArm(Vector2 desiredPoint) 
-	{
-		if ( ! hasFinishedMoving() ) {
-			System.err.println("Arm has not finished moving yet");
-			return false;
-		}
-		
+	private ISolver createSolver(Vector2 desiredPoint) {
 		final KinematicsChain m = this.model.getChains().get(0).createCopy();
-		
-		CCDSolver solver = new CCDSolver(m, m.getEndBone() , desiredPoint);
-		
-		ISolver.Outcome outcome;
-		do {
-			outcome = solver.solve();
-		} while ( outcome == Outcome.PROCESSING );
-		
+		return new CCDSolver(m, desiredPoint);
+	}
+	
+	public void moveArm(Vector2 desiredPoint) 
+	{
+		if ( hasFinishedMoving() ) {
+			currentSolver = createSolver(desiredPoint);			
+			solveTimeSecs=0;
+		} else {
+			System.err.println("Arm has not finished moving yet");
+		}
+	}
+	
+	private void solve(float deltaSeconds) 
+	{
+		if ( currentSolver == null) {
+			return;
+		}
+
+		final Outcome outcome = currentSolver.solve(100);
+		solveTimeSecs+=deltaSeconds;
 		if ( outcome == Outcome.SUCCESS )
 		{
-			m.visitJoints( joint -> 
+			System.out.println("Found solution in "+solveTimeSecs*1000+" millis");
+			currentSolver.getChain().visitJoints( joint -> 
 			{
 				if ( Main.DEBUG ) {
-					System.out.println("*** Joint "+joint+" is set to angle "+((Joint) joint).getOrientationDegrees());
+					System.out.println("*** Joint "+joint+" is set to angle "+joint.getOrientationDegrees());
 				}
-				actuators.get( joint.getId() ).setDesiredAngle( ((Joint) joint).getOrientationDegrees() );
+				actuators.get( joint.getId() ).setDesiredAngle( joint.getOrientationDegrees() );
 				return true;
 			});
-			return true;
-		} else {
-			System.err.println("Failed to solve motion constraints");			
+			currentSolver = null;
+		} 
+		else if ( outcome == Outcome.FAILURE) {
+			System.err.println("Failed to solve motion constraints after "+solveTimeSecs*1000+" millis");
+			currentSolver = null;
 		}
-		return false;
 	}
 	
 	public boolean hasFinishedMoving() 
 	{
-		return actuators.values().stream().noneMatch( Actuator::isMoving );
+		return currentSolver == null && actuators.values().stream().noneMatch( Actuator::isMoving );
 	}
 
 	@Override
 	public boolean tick(float deltaSeconds) 
 	{
+		solve(deltaSeconds);
 		actuators.values().forEach( act -> act.tick( deltaSeconds ) );
 		model.getChains().forEach( chain -> chain.applyForwardKinematics() );
 		return true;
