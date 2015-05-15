@@ -156,7 +156,8 @@ public final class MyPanel extends JPanel implements ITickListener
 	private void renderFPS(float deltaSeconds) 
 	{
 		fpsTracker.renderFPS( deltaSeconds );
-		getBackBufferGraphics().drawImage( fpsTracker.getImage() , 100, 100 , null );
+		final BufferedImage image = getBackBufferImage();
+		getBackBufferGraphics().drawImage( fpsTracker.getImage() , 0, image.getHeight() - fpsTracker.getSize().height , null );
 	}
 
 	private void renderDesiredPosition() {

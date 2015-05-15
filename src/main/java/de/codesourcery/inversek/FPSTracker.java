@@ -1,73 +1,94 @@
 package de.codesourcery.inversek;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 public class FPSTracker {
 
-	private static final int RINGBUFFER_SIZE=100;
+	private static final int RINGBUFFER_SIZE=150;
 	
 	private final BufferedImage image;
 	private final Graphics2D graphics;
 	
 	private final float[] ringBuffer = new float[RINGBUFFER_SIZE];
 	
+	private float minFps = 100000;
+	private float maxFps = 0;	
+	private long frameCount = 0;
+	
 	private int readPtr;
 	private int writePtr;
 	private int elementsInBuffer;
+	
+	private final Dimension size;
 	
 	public FPSTracker() 
 	{
 		this.image = new BufferedImage(RINGBUFFER_SIZE,50,BufferedImage.TYPE_INT_RGB);
 		this.graphics = image.createGraphics();
+		this.size = new Dimension(image.getWidth(),image.getHeight());
 	}
 	
 	public BufferedImage getImage() {
 		return image;
 	}
 	
+	public Dimension getSize() {
+		return size;
+	}
+	
 	public void renderFPS(float deltaSeconds) 
 	{
 		final float fps = 1.0f/deltaSeconds;
-		ringBuffer[ writePtr ] = fps;
-		elementsInBuffer = Math.max( elementsInBuffer+1, RINGBUFFER_SIZE );
+		frameCount++;
 		
+		ringBuffer[ writePtr ] = fps;
 		writePtr = (writePtr+1) % RINGBUFFER_SIZE;
+		
+		elementsInBuffer = Math.max( elementsInBuffer+1, RINGBUFFER_SIZE );
 		if ( elementsInBuffer == RINGBUFFER_SIZE ) {
 			readPtr = (readPtr+1) % RINGBUFFER_SIZE;
 		}
 		
-		float minFps = 10000;
-		float maxFps = 0;
-		float sumFps = 0;
-		for ( int i = elementsInBuffer, ptr = readPtr ; i > 0 ; i-- ) 
-		{
-			float value = ringBuffer[ ptr % RINGBUFFER_SIZE ];
-			sumFps += value;
-			minFps = Math.min( value , minFps );
-			maxFps = Math.max( value ,  maxFps );
+		if ( frameCount > 20 ) { // avoid distorting measurements by skipping some frames until the JIT compiler has kicked in
+			minFps = Math.min( fps , minFps );
+			maxFps = Math.max( fps ,  maxFps );
 		}
-		float avgFps = sumFps / elementsInBuffer;
-		float range = maxFps-minFps;
+		
+		final float range = maxFps;
 
-		// clear screen
+		// clear render buffer
 		graphics.setColor(Color.BLACK);
 		graphics.fillRect(0,0,image.getWidth(),image.getHeight());
 		
 		// render chart
-		final int imageHeight = image.getHeight();
+		final int yOffset = 20;
+		final int imageHeight = image.getHeight()-  yOffset;
+		final int y0 = image.getHeight();
 		graphics.setColor(Color.GREEN);
-		for ( int i = elementsInBuffer, x= 0 , ptr = readPtr ; i > 0 ; i-- ) 
-		{
-			float value = ringBuffer[ ptr % RINGBUFFER_SIZE ] - minFps;
-			float percentage = value / range;
-			final int y= imageHeight - (int) (image.getHeight()*percentage);
-			graphics.drawLine(x,imageHeight,x,y);
-		}
 		
-		// render text
+		float bufferMinFps = 10000;
+		float bufferMaxFps = 0;
+		float bufferSumFps = 0;
+		for ( int i = elementsInBuffer, x= 0 , ptr = readPtr ; i > 0 ; i--,x++) 
+		{
+			final float value = ringBuffer[ ptr ];
+			ptr = (ptr+1) % RINGBUFFER_SIZE;
+			
+			bufferSumFps += value;
+			bufferMinFps = value < bufferMinFps ? value : bufferMinFps;
+			bufferMaxFps = value > bufferMaxFps ? value : bufferMaxFps;
+			
+			final float percentage = value / range;
+			final int y= y0 - (int) (imageHeight*percentage);
+			graphics.drawLine(x,y0,x,y);
+		}
+		final float bufferAvgFps = bufferSumFps / elementsInBuffer;
+		
+		// draw FPS string
 		graphics.setColor(Color.WHITE);
-		graphics.drawString("FPS: "+(int) minFps+" / "+(int) avgFps+" / "+(int) maxFps,5,15);
+		graphics.drawString("FPS: "+(int) bufferMinFps+" / "+(int) bufferAvgFps+" / "+(int) bufferMaxFps,5,15);
 	}
 }
