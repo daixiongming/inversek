@@ -9,6 +9,7 @@ import com.badlogic.gdx.math.Vector2;
 public class Main 
 {
 	public static final boolean DEBUG = false;
+	public static final int DESIRED_FPS = 70;
 	
 	public static void main(String[] args) 
 	{
@@ -42,28 +43,27 @@ public class Main
 
 		// main loop
 
-		long previous = System.currentTimeMillis()-15;
+		long previous = System.currentTimeMillis();
+		float sumSeconds=0;
 		while ( true ) 
 		{
 			long now = System.currentTimeMillis();
 			float deltaSeconds = (now - previous)/1000f;
+			sumSeconds += deltaSeconds;
 			previous = now;
 
 			if ( panel.desiredPositionChanged ) 
 			{
-				final Vector2 target = panel.viewToModel( panel.desiredPosition );
-				robotArm.moveArm( target );
+				robotArm.moveArm( panel.viewToModel( panel.desiredPosition ) );
 				panel.desiredPositionChanged = false;				
 			}
 
 			listenerContainer.tick( deltaSeconds );
 			
-			panel.tick( deltaSeconds );
-
-			try {
-				Thread.sleep( 15 );
-			} catch(InterruptedException e) {
-				Thread.currentThread().interrupt();
+			if ( sumSeconds >= 1.0f/DESIRED_FPS ) 
+			{
+				panel.tick( sumSeconds );
+				sumSeconds = 0;
 			}
 		}
 	}

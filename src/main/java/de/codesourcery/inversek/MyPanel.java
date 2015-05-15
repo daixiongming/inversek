@@ -142,7 +142,18 @@ public final class MyPanel extends JPanel implements ITickListener
 		screenCenterX = getWidth()/2;
 		screenCenterY = getHeight() / 2;
 		clearBackBuffer();
-		model.getChains().forEach( chain -> chain.visit( this::renderNode ) );
+		
+		model.getChains().forEach( chain -> 
+		{
+			chain.visit( this::renderNode );
+			
+			// render floor
+			final Vector2 p = new Vector2();
+			modelToView( chain.getRootJoint().position , p);
+			final Graphics2D graphics = getBackBufferGraphics();
+			graphics.setColor(Color.BLACK);
+			graphics.drawLine( 0 , (int) p.y , getWidth() , (int) p.y );
+		});
 		
 		renderFPS( deltaSeconds );
 		

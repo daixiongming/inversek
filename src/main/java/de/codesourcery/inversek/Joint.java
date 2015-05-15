@@ -98,18 +98,19 @@ public class Joint extends Node
 			return "Range[ "+Arrays.stream( intervals ).map( Interval::toString ).collect( Collectors.joining(",") )+" ]";
 		}
 		
-		public float getMaxAngleCCW() {
+		public float getMaxValidAngleCCW() {
 			if ( this.intervals.length == 1 ) {
 				return this.intervals[0].end;
 			}
 			return this.intervals[1].end;
 		}
 		
-		public float getMaxAngleCW() {
+		public float getMaxValidAngleCW() {
 			return this.intervals[0].start;
 		}
 		
-		public static float normalize(float value) {
+		public static float normalize(float value) 
+		{
 			while ( value > 360 ) {
 				value -= 360;
 			}
@@ -231,8 +232,7 @@ public class Joint extends Node
 	public void setOrientation(float degrees) 
 	{
 		orientationDegrees = range.clamp( degrees );
-		orientation.set(1,0);
-		orientation.rotate( degrees );
+		orientation.set(1,0).rotate( degrees );
 	}
 	
 	public void addOrientation(float degreesDelta) 
@@ -245,8 +245,8 @@ public class Joint extends Node
 		
 		if ( degreesDelta >= 0 ) 
 		{
-			// rotate counter-clockwise
-			float clampedValue = range.getMaxAngleCCW();
+			// caller wants to rotate counter-clockwise
+			float clampedValue = range.getMaxValidAngleCCW();
 			if ( Main.DEBUG ) {
 				System.out.println("Illegal rotation by "+degreesDelta+" , current angle is "+this.orientationDegrees+" ,"
 					+ ", result "+newValue+" is not in range "+range+", clamping to "+clampedValue );
@@ -254,8 +254,8 @@ public class Joint extends Node
 			setOrientation( clampedValue  );
 			return;
 		} 
-		// rotate clockwise
-		float clampedValue = range.getMaxAngleCW();
+		// caller wants to rotate clockwise
+		float clampedValue = range.getMaxValidAngleCW();
 		if ( Main.DEBUG ) {
 			System.out.println("Illegal rotation by "+degreesDelta+" , current angle is "+this.orientationDegrees+" ,"
 				+ ", result "+newValue+" is not in range "+range+", clamping to "+clampedValue);

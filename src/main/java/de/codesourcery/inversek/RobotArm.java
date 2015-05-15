@@ -12,8 +12,8 @@ import de.codesourcery.inversek.Joint.MovementRange;
 
 public class RobotArm implements ITickListener {
 
-	private static final float ACTUATOR_SPEED = 70f;
-	private static final float EPSILON = 0.5f;
+	private static final float ACTUATOR_SPEED = 180f;
+	private static final float EPSILON = 0.1f;
 	
 	private final Model model;
 	private float solveTimeSecs;
@@ -28,6 +28,20 @@ public class RobotArm implements ITickListener {
 		public ActuatorMover(Joint joint,float desiredAngle) {
 			this.joint = joint;
 			this.desiredAngle = desiredAngle;
+		}
+		
+		private float getMinDistance(float desiredAngle,float currentAngle) 
+		{
+			float ccwDelta;
+			float cwDelta;			
+			if ( desiredAngle >= currentAngle ) {
+				ccwDelta = desiredAngle - currentAngle;
+				cwDelta = (360-desiredAngle) + currentAngle;
+			} else { 
+				cwDelta = currentAngle - desiredAngle;
+				ccwDelta = (360-currentAngle) + desiredAngle;
+			}
+			return Math.min( ccwDelta, cwDelta );
 		}
 
 		@Override
@@ -54,11 +68,12 @@ public class RobotArm implements ITickListener {
 				return false;
 			}
 			
+			final float speed = getMinDistance( desiredAngle , currentAngle ) <= 2 ? ACTUATOR_SPEED*0.05f : ACTUATOR_SPEED;
 			float inc;
 			if ( ccwDelta < cwDelta ) {
-				inc = ACTUATOR_SPEED * deltaSeconds;
+				inc = speed * deltaSeconds;
 			} else {
-				inc = - ACTUATOR_SPEED * deltaSeconds;
+				inc = - speed * deltaSeconds;
 			}
 
 			if ( Main.DEBUG ) {
@@ -143,9 +158,26 @@ public class RobotArm implements ITickListener {
 		return model;
 	}
 	
-	private ISolver createSolver(Vector2 desiredPoint) {
-		final KinematicsChain m = this.model.getChains().get(0).createCopy();
-		return new CCDSolver(m, desiredPoint);
+	private ISolver createSolver(Vector2 desiredPoint) 
+	{
+		final KinematicsChain chain = this.model.getChains().get(0).createCopy();
+		
+		final Joint rootJoint = chain.getRootJoint();
+		final IConstraintValidator validator = new IConstraintValidator() 
+		{
+			@Override
+			public boolean isInvalidConfiguration(KinematicsChain chain) 
+			{
+				for ( Bone b : chain.getBones() ) 
+				{
+					if ( b.start.y < rootJoint.position.y || b.end.y < rootJoint.position.y ) {
+						return true;
+					}
+				}
+				return false; 
+			}
+		};
+		return new AsyncSolverWrapper( new CCDSolver(chain, desiredPoint, validator ) );
 	}
 	
 	public void moveArm(Vector2 desiredPoint) 

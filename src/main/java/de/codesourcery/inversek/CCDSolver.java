@@ -10,8 +10,6 @@ public class CCDSolver implements ISolver
 
 	private static final double DESIRED_ARRIVAL_DST = 1;
 
-	protected static final boolean CONSTRAINT_MOVEMENT = false;
-
 	protected static final int RANDOM_RETRIES = 100;
 
 	protected static final int FAILURE_RETRY_COUNT = 50;
@@ -30,13 +28,17 @@ public class CCDSolver implements ISolver
 	private Outcome finalResult;
 
 	private int iterations = MAX_ITERATIONS;
-	private int retries = FAILURE_RETRY_COUNT;
+	private int failureRetriesLeft = FAILURE_RETRY_COUNT;
 	private int randomRetriesLeft = RANDOM_RETRIES;
+	
+	private final IConstraintValidator constraintValidator;
 
-	public CCDSolver(KinematicsChain chain,Vector2 desiredPosition) {
+	public CCDSolver(KinematicsChain chain,Vector2 desiredPosition,IConstraintValidator validator) 
+	{
 		this.chain = chain;
 		this.endBone = chain.getEndBone();
 		this.desiredPosition = desiredPosition.cpy();
+		this.constraintValidator = validator;
 	}
 
 	@Override
@@ -45,66 +47,78 @@ public class CCDSolver implements ISolver
 	}
 
 	@Override
-	public Outcome solve(int maxIterations) 
+	public Outcome solve(final int maxIterations) 
 	{
 		if ( finalResult != null ) {
 			return finalResult;
 		}
+		
 		Outcome outcome = Outcome.FAILURE;
-		for ( int i = maxIterations ; i > 0 ; i--) 
+
+		int localIterations = iterations;
+		int localRandomRetriesLeft = randomRetriesLeft;
+		int localFailureRetriesLeft = failureRetriesLeft;
+		try 
 		{
-			outcome = doApplyInverseKinematics(endBone, desiredPosition);
-			switch(outcome)
+			for ( int i = maxIterations ; i > 0 ; i--) 
 			{
-				case FAILURE:
-					if ( randomRetriesLeft-- <= 0 ) {
-						finalResult = Outcome.FAILURE;
-						return Outcome.FAILURE;						
-					}
-					restartFromRandomPosition();
-					outcome = Outcome.PROCESSING;
-					break;
-				case PROCESSING:
-					break;
-				case SUCCESS:
-					finalResult = Outcome.SUCCESS;
-					return outcome;
-				default:
-					throw new RuntimeException("Unhandled switch/case: "+outcome);
-			}
-		}
-		return outcome;
-	}
-
-	private void restartFromRandomPosition() {
-		chain.setRandomJointPositions(rnd);
-		iterations = MAX_ITERATIONS;
-		retries = FAILURE_RETRY_COUNT;
-	}
-
-	private Outcome doApplyInverseKinematics(Bone bone,Vector2 desiredPosition) 
-	{
-		final Outcome result = singleIteration( bone , desiredPosition );
-		iterations--;
-
-		switch( result ) {
-			case FAILURE:
-				retries--;
-				if ( retries < 0 ) {
-					return Outcome.FAILURE;
+				outcome = singleIteration(endBone, desiredPosition);
+				localIterations--;
+				switch(outcome)
+				{
+					case FAILURE:
+						if ( localFailureRetriesLeft-- > 0 ) {
+							outcome = Outcome.PROCESSING;
+						} 
+						else 
+						{
+							if ( localRandomRetriesLeft-- <= 0 ) {
+								return terminalResult( Outcome.FAILURE );						
+							}
+							
+							// restart from new random position
+							chain.setRandomJointPositions(rnd);
+							localIterations = MAX_ITERATIONS;
+							localFailureRetriesLeft = FAILURE_RETRY_COUNT;
+							outcome = Outcome.PROCESSING;
+							// end: restart
+						}
+						break;
+					case PROCESSING:
+						if ( localIterations < 0 ) 
+						{
+							if ( localRandomRetriesLeft-- <= 0 ) {
+								return terminalResult( Outcome.FAILURE );						
+							}				
+							// restart from new random position
+							chain.setRandomJointPositions(rnd);
+							localIterations = MAX_ITERATIONS;
+							localFailureRetriesLeft = FAILURE_RETRY_COUNT;
+							outcome = Outcome.PROCESSING;
+							// end: restart
+						} else {	
+							localFailureRetriesLeft = FAILURE_RETRY_COUNT;
+						}
+						break;
+					case SUCCESS:
+						return terminalResult( outcome );
+					default:
+						throw new RuntimeException("Unhandled switch/case: "+outcome);
 				}
-				return Outcome.PROCESSING;
-			case PROCESSING:
-				if ( iterations < 0 ) {
-					return Outcome.FAILURE;
-				}	
-				retries = FAILURE_RETRY_COUNT;
-				return result;
-			case SUCCESS:
-				return result;
-			default:
-				throw new RuntimeException("Unreachable code reached");
+			}
+			return outcome;
+		} 
+		finally 
+		{
+			iterations = localIterations;
+			randomRetriesLeft = localRandomRetriesLeft;
+			failureRetriesLeft = localFailureRetriesLeft;
 		}
+	}
+	
+	private Outcome terminalResult(Outcome result) {
+		finalResult = result;
+		return result;
 	}
 
 	private Outcome singleIteration(final Bone lastBone,Vector2 desiredPosition) 
@@ -115,17 +129,20 @@ public class CCDSolver implements ISolver
 		 */
 
 		final float initialDistance = lastBone.end.dst(desiredPosition);
+		
+		final Vector2 curToEnd= new Vector2();
+		final Vector2 curToTarget = new Vector2();
+		
 		while ( true ) 
 		{
 			final Bone currentBone = currentJoint == null ? null : currentJoint.successor;
 			if ( currentBone == null ) 
 			{
 				// check for termination
-				final float currentDst = lastBone.end.dst( desiredPosition ); 				
-				if ( currentDst <= DESIRED_ARRIVAL_DST ) {
-					System.out.println("Arrived at destination");
-					return Outcome.SUCCESS;
-				}	
+				final float currentDst = lastBone.end.dst2( desiredPosition ); 				
+				if ( currentDst <= DESIRED_ARRIVAL_DST*DESIRED_ARRIVAL_DST ) {
+					return constraintValidator.isInvalidConfiguration( chain) ? Outcome.FAILURE : Outcome.SUCCESS;
+				}
 
 				if ( Math.abs( currentDst - initialDistance ) >= MIN_CHANGE ) {
 					return Outcome.PROCESSING;
@@ -134,11 +151,11 @@ public class CCDSolver implements ISolver
 			}
 
 			// Get the vector from the current bone to the end effector position.			
-			final Vector2 curToEnd = lastBone.end.cpy().sub( currentBone.getCenter() );
+			curToEnd.set( lastBone.end ).sub( currentBone.getCenter() );
 			final double curToEndMag = curToEnd.len();
 
 			// Get the vector from the current bone to the target position.
-			final Vector2 curToTarget = desiredPosition.cpy().sub( currentBone.getCenter() );
+			curToTarget.set( desiredPosition ).sub( currentBone.getCenter() );
 			final double curToTargetMag = curToTarget.len();
 
 			// Get rotation to place the end effector on the line from the current
@@ -165,7 +182,6 @@ public class CCDSolver implements ISolver
 			}
 
 			// apply rotation
-
 			final double rotDeg = rotAng * (180.0/Math.PI); // convert rad to deg
 			if ( Main.DEBUG ) {
 				System.out.println("Adjusting "+currentJoint+" by "+rotDeg+" degrees");
@@ -173,9 +189,8 @@ public class CCDSolver implements ISolver
 			applyJointRotation(currentJoint, rotDeg,lastBone);
 
 			// check for termination
-			if ( lastBone.end.dst( desiredPosition ) <= DESIRED_ARRIVAL_DST ) {
-				System.out.println("Arrived at destination");
-				return Outcome.SUCCESS;
+			if ( lastBone.end.dst2( desiredPosition ) <= DESIRED_ARRIVAL_DST*DESIRED_ARRIVAL_DST ) {
+				return constraintValidator.isInvalidConfiguration( chain) ? Outcome.FAILURE : Outcome.SUCCESS;
 			}			
 
 			// process next joint
@@ -190,33 +205,12 @@ public class CCDSolver implements ISolver
 
 	private void applyJointRotation(Joint currentJoint, final double rotDeg,Bone lastBone) 
 	{
-		final float oldRotation = currentJoint.getOrientationDegrees();
-
 		currentJoint.addOrientation( (float) rotDeg );
 
 		// update bone positions
 		if ( currentJoint.successor != null  ) {
 			currentJoint.successor.forwardKinematics();				
 		}
-
-		if ( CONSTRAINT_MOVEMENT && ! isValidConfiguration(lastBone) ) 
-		{
-			currentJoint.addOrientation( oldRotation );
-
-			// update bone positions
-			if ( currentJoint.successor != null  ) {
-				currentJoint.successor.forwardKinematics();				
-			}			
-		}
-	}
-
-	private boolean isValidConfiguration(Bone endBone) 
-	{
-		float y = chain.getRootJoint().position.y;
-		if ( chain.getJoints().stream().anyMatch( joint -> joint.position.y < y ) ) {
-			return false;
-		}
-		return endBone.end.y >= y;
 	}
 
 	@Override
