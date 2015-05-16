@@ -1,6 +1,7 @@
 package de.codesourcery.inversek;
 
 import java.awt.Dimension;
+import java.awt.Point;
 
 import javax.swing.JFrame;
 
@@ -71,9 +72,16 @@ public class Main
 			
 			if ( panel.desiredPositionChanged ) 
 			{
-				if ( robotArm.moveArm( panel.viewToModel( panel.desiredPosition ) ) ) {
-					// System.err.println("Arm has not finished moving yet");
-					panel.desiredPositionChanged = false;
+				final Point p = panel.desiredPosition;
+				if ( p != null ) {
+					final Vector2 worldCoords = panel.viewToModel( p );
+					if ( robotArm.moveArm( worldCoords ) ) {
+						 System.err.println("Arm has not finished moving yet");
+						panel.desiredPositionChanged = false;
+					} else {
+						panel.desiredPosition = null;
+						System.err.println("Arm moving to "+p+" (world: "+worldCoords+")");
+					}
 				}
 			}
 			

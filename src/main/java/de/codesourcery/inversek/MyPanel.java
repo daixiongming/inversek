@@ -638,14 +638,13 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	
 	private static void updateCamera(OrthographicCamera camera,int viewportWidth,int viewportHeight) 
 	{
-		camera.viewportWidth = viewportWidth;
-		camera.viewportHeight = viewportHeight;
+		camera.setToOrtho( true , viewportWidth , viewportHeight);
 		
 		camera.direction.set( 0 , 0, 1 );
 		camera.position.set(0,0,-5f);
-		camera.near = 1;		
+		camera.near = 0;		
 		camera.far = 100;
-		camera.zoom = 0.5f;
+		camera.zoom = 0.005f;
 		
 		System.out.println("Setting camera viewport to "+viewportWidth+" x "+viewportHeight);
 		camera.update(true);

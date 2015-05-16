@@ -26,8 +26,8 @@ import com.badlogic.gdx.physics.box2d.joints.WeldJointDef;
 public class WorldModel implements ITickListener , IMathSupport
 {
 	private static final float PHYSICS_TIMESTEP = 1/30f;
-	private static final int VELOCITY_ITERATIONS = 6;
-	private static final int POSITION_ITERATIONS = 2;
+	private static final int VELOCITY_ITERATIONS = 6; // 6
+	private static final int POSITION_ITERATIONS = 2; // 2
 
 	private static final float DENSITY = 0.01f;
 
@@ -68,7 +68,7 @@ public class WorldModel implements ITickListener , IMathSupport
 	}
 
 	public WorldModel() {
-		world  = new World( new Vector2(0,-20) , true );
+		world  = new World( new Vector2(0,-9.81f) , true );
 		setupFloorPlane();
 	}
 
@@ -82,10 +82,9 @@ public class WorldModel implements ITickListener , IMathSupport
 
 	private void setupFloorPlane() 
 	{
-		final float floorThickness = 20;
-		final Vector2 position = new Vector2(0, floorY-floorThickness+Constants.BALL_RADIUS);
+		final Vector2 position = new Vector2(0, floorY-Constants.FLOOR_THICKNESS/2f);
 		newStaticBody( ItemType.GROUND , position )
-		.boxShape(2000 , floorThickness)
+		.boxShape(100 , Constants.FLOOR_THICKNESS)
 		.collidesWith(ItemType.BALL)
 		.build();
 	}
@@ -97,7 +96,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		// Create our body in the world using our body definition
 		final Body body = newDynamicBody(ItemType.BALL,new Vector2(x,y))
 				.circleShape( Constants.BALL_RADIUS )
-				.collidesWith( ItemType.GROUND  , ItemType.BONE )
+				.collidesWith( ItemType.GROUND  , ItemType.BONE , ItemType.BALL )
 				.restitution( 0.3f )
 				.build();
 
@@ -449,7 +448,7 @@ public class WorldModel implements ITickListener , IMathSupport
 				throw new IllegalStateException("Shape not set?");
 			}
 
-			System.out.println("Creating "+(isStatic?"static":"dynamic")+" body @ "+center+" with shappe "+this.shape);
+			System.out.println("Creating "+(isStatic?"static":"dynamic")+" body @ "+center+" with shape "+this.shape);
 
 			final BodyDef bodyDef = new BodyDef();
 			bodyDef.type = isStatic ? BodyType.StaticBody : BodyType.DynamicBody;

@@ -2,7 +2,9 @@ package de.codesourcery.inversek;
 
 public class Constants {
 
-	public static final float FACTOR = 100;
+	public static final float FACTOR = 1;
+	
+	public static final float FLOOR_THICKNESS = FACTOR*1f;
 	
 	// Careful, all values are in meters
 	public static final float BALL_RADIUS = FACTOR*0.05f; // 10 cm
