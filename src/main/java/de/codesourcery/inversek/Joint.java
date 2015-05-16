@@ -5,11 +5,11 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.joints.RevoluteJoint;
 
-public class Joint extends Node
+public class Joint extends Node<RevoluteJoint> implements IMathSupport
 {
-	public static final float JOINT_BONE_GAP = 2f;
-	public static final float JOINT_RADIUS = 7f;
+	public static final float JOINT_RADIUS = 10f;
 	
 	private float orientationDegrees = 0;
 	private final Vector2 orientation = new Vector2();
@@ -25,7 +25,7 @@ public class Joint extends Node
 	
 	private Joint(Joint other,Bone predecessor,Bone successor) 
 	{
-		super(other.getId(),NodeType.JOINT);
+		super(other.getBody() , other.getId(),NodeType.JOINT);
 		this.orientationDegrees = other.orientationDegrees;
 		this.orientation.set( other.orientation );
 		this.position.set( other.position );
@@ -70,7 +70,7 @@ public class Joint extends Node
 		}
 	}
 	
-	public static final class MovementRange {
+	public static final class MovementRange implements IMathSupport {
 		
 		public final Interval[] intervals;
 		
@@ -120,20 +120,9 @@ public class Joint extends Node
 			return this.intervals[0].start;
 		}
 		
-		public static float normalize(float value) 
-		{
-			while ( value > 360 ) {
-				value -= 360;
-			}
-			while ( value < 0 ) {
-				value += 360;
-			}
-			return value;
-		}
-		
 		public boolean isInRange(float value) 
 		{
-			value = normalize(value);
+			value = normalizeAngleInDeg(value);
 
 			for ( int i = 0 ; i < intervals.length ; i++ ) 
 			{
@@ -149,12 +138,12 @@ public class Joint extends Node
 			if ( isInRange( value ) ) 
 			{
 				if ( value < 0 || value > 360 ) {
-					return normalize(value);
+					return normalizeAngleInDeg(value);
 				}
 				return value;
 			}
 			
-			value = normalize(value);
+			value = normalizeAngleInDeg(value);
 			
 			float bestValue=value;
 			float bestDelta=Integer.MAX_VALUE;
@@ -190,7 +179,7 @@ public class Joint extends Node
 	
 	public Joint(String name,float radius,float orientation) 
 	{
-		super(name,NodeType.JOINT);
+		super(null,name,NodeType.JOINT);
 		if ( radius <= 0 ) {
 			throw new IllegalArgumentException("radius needs to be > 0,was: "+radius);
 		}

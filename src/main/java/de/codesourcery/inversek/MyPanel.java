@@ -18,13 +18,19 @@ import com.badlogic.gdx.physics.box2d.Body;
 
 import de.codesourcery.inversek.WorldModel.Ball;
 
-public final class MyPanel extends JPanel implements ITickListener
+public final class MyPanel extends JPanel implements ITickListener , IMathSupport
 {
+	private static final Color ROBOT_BASE_COLOR = Color.BLACK;
+	
 	private static final Color JOINT_COLOR = Color.RED;
 	
 	private static final Color BALL_COLOR = Color.GREEN;
 	
-	private static final Color END_BONE_COLOR = Color.BLACK;
+	private static final Color GRIPPER_BONE_COLOR = Color.BLACK;
+	private static final Color GRIPPER_BASEPLATE_COLOR = Color.YELLOW;
+	private static final Color GRIPPER_LOWER_CLAW_COLOR = Color.RED;
+	private static final Color GRIPPER_UPPER_CLAW_COLOR = Color.CYAN;
+	
 	private static final Color BONE_COLOR = Color.BLUE;
 	
 	protected static final Color SELECTION_COLOR = Color.GREEN;
@@ -40,6 +46,9 @@ public final class MyPanel extends JPanel implements ITickListener
 	
 	private final WorldModel worldModel;
 	
+	private final Box box1 = new Box();
+	private final Box box2 = new Box();	
+	
 	private final BufferedImage[] buffers = new BufferedImage[2]; 
 	private final Graphics2D[] graphics = new Graphics2D[2];
 	private int bufferIdx = 0;
@@ -49,8 +58,8 @@ public final class MyPanel extends JPanel implements ITickListener
 	
 	public volatile Point addBallAt;
 	
-	public Node selectedNode;
-	public Node hoveredNode;
+	public Node<?> selectedNode;
+	public Node<?> hoveredNode;
 	
 	public volatile boolean desiredPositionChanged = false;
 	public volatile Point desiredPosition;
@@ -62,7 +71,7 @@ public final class MyPanel extends JPanel implements ITickListener
 			if ( e.getButton() == MouseEvent.BUTTON1 ) 
 			{
 				final Point p = e.getPoint();
-				final Node n = getNodeAt( p.x ,p.y );
+				final Node<?> n = getNodeAt( p.x ,p.y );
 				if ( n != null && selectedNode != n ) 
 				{
 					selectedNode = n;
@@ -75,21 +84,20 @@ public final class MyPanel extends JPanel implements ITickListener
 					addBallAt = new Point( e.getPoint() );
 				}
 			}
-			
-//			else if ( e.getButton() == MouseEvent.BUTTON3 ) 
-//			{
-//				if ( desiredPosition == null || ! desiredPosition.equals( e.getPoint() ) ) 
-//				{
-//					desiredPosition = new Point( e.getPoint() );
-//					desiredPositionChanged = true;
-//				}
-//			}
+			else if ( e.getButton() == MouseEvent.BUTTON3 ) 
+			{
+				if ( desiredPosition == null || ! desiredPosition.equals( e.getPoint() ) ) 
+				{
+					desiredPosition = new Point( e.getPoint() );
+					desiredPositionChanged = true;
+				}
+			}
 		}
 		
 		public void mouseMoved(java.awt.event.MouseEvent e) 
 		{
 			final Point p = e.getPoint();
-			final Node n = getNodeAt( p.x ,p.y );
+			final Node<?> n = getNodeAt( p.x ,p.y );
 			if ( hoveredNode != n ) {
 				hoveredNode = n;
 			}	
@@ -102,12 +110,50 @@ public final class MyPanel extends JPanel implements ITickListener
 		}
 	};
 	
-	private Node getNodeAt(int x,int y) 
+	protected static final class Box 
+	{
+		public final Vector2 p0 = new Vector2();
+		public final Vector2 p1 = new Vector2();
+		public final Vector2 p2 = new Vector2();
+		public final Vector2 p3 = new Vector2();
+		
+		public Box() {
+		}
+		
+		public void getOrientedLine(Vector2 start,Vector2 end) 
+		{
+			start.set( p0 ).add( p3 ).scl(0.5f);
+			end.set( p1 ).add( p2 ).scl(0.5f);
+		}
+		
+		public void set(Vector2 centerInWorldCoords,float xExtent,float yExtent,float angleInDegrees) 
+		{
+			p0.set(-xExtent/2, yExtent/2);
+			p1.set( xExtent/2, yExtent/2);
+			p2.set( xExtent/2,-yExtent/2);
+			p3.set(-xExtent/2,-yExtent/2);
+			
+			if ( angleInDegrees != 0 ) 
+			{
+				p0.rotate( angleInDegrees );
+				p1.rotate( angleInDegrees );
+				p2.rotate( angleInDegrees );
+				p3.rotate( angleInDegrees );
+			}
+			
+			p0.add( centerInWorldCoords );
+			p1.add( centerInWorldCoords );
+			p2.add( centerInWorldCoords );
+			p3.add( centerInWorldCoords );
+		}
+	}	
+	
+	private Node<?> getNodeAt(int x,int y) 
 	{
 		final Rectangle boundingBox = new Rectangle();
 		for ( KinematicsChain chain : robotModel.getModel().getChains() ) 
 		{
-			final Node n = chain.stream()
+			final Node<?> n = chain.stream()
 					.filter( node -> 
 					{
 						getBoundingBox( node , boundingBox );
@@ -131,7 +177,7 @@ public final class MyPanel extends JPanel implements ITickListener
 		requestFocus();
 	}
 	
-	protected void getBoundingBox(Node node,Rectangle boundingBox) 
+	protected void getBoundingBox(Node<?> node,Rectangle boundingBox) 
 	{
 		switch( node.getType() ) 
 		{
@@ -189,14 +235,48 @@ public final class MyPanel extends JPanel implements ITickListener
 		
 		// render robot arm base
 		final Body robotBase = robotModel.getBase();
-		final Vector2 scrCoords = new Vector2(); 
-		modelToView( robotBase.getPosition() , scrCoords );
-		
-		graphics.fillRect( (int) ( scrCoords.x - RobotArm.ROBOTBASE_WIDTH/2),
-				(int) (scrCoords.y - RobotArm.ROBOTBASE_HEIGHT/2) , (int) RobotArm.ROBOTBASE_WIDTH, (int) RobotArm.ROBOTBASE_HEIGHT );
+		getBackBufferGraphics().setColor( ROBOT_BASE_COLOR );
+		renderBox( robotBase.getPosition() , RobotArm.ROBOTBASE_WIDTH , RobotArm.ROBOTBASE_HEIGHT , 0 , true );
 		
 		// render world objects
 		worldModel.getBalls().forEach( this::renderBall );
+	}
+	
+
+	private void renderBox(Vector2 centerInWorldCoords,float xExtent,float yExtent,float angleInDegrees,boolean filled) 
+	{
+		box1.set( centerInWorldCoords , xExtent , yExtent , angleInDegrees );
+		renderBox( box1 , filled );
+	}
+
+	private void renderBox(Box box,boolean filled) 
+	{
+		final int x[] = new int[4];
+		final int y[] = new int[4];
+		
+		final Vector2 tmp = new Vector2();
+		
+		modelToView( box1.p0 , tmp );
+		x[0] = (int) tmp.x;
+		y[0] = (int) tmp.y;
+		
+		modelToView( box1.p1 , tmp );
+		x[1] = (int) tmp.x;
+		y[1] = (int) tmp.y;
+		
+		modelToView( box1.p2 , tmp );
+		x[2] = (int) tmp.x;
+		y[2] = (int) tmp.y;
+		
+		modelToView( box1.p3 , tmp );
+		x[3] = (int) tmp.x;
+		y[3] = (int) tmp.y;
+		
+		if ( filled ) {
+			getBackBufferGraphics().fillPolygon( x , y , 4 );
+		} else {
+			getBackBufferGraphics().drawPolygon( x , y , 4 );
+		}
 	}
 	
 	private void renderBall(Ball ball) 
@@ -254,7 +334,7 @@ public final class MyPanel extends JPanel implements ITickListener
 		graphics.drawString( "SELECTION: "+selectedNode.getId()+details, 5 , 15 );
 	}
 
-	private boolean renderNode(Node n) 
+	private boolean renderNode(Node<?> n) 
 	{
 		switch( n.getType() ) {
 			case BONE:
@@ -271,8 +351,31 @@ public final class MyPanel extends JPanel implements ITickListener
 
 	private void renderJoint(Joint joint) 
 	{
-		getBackBufferGraphics().setColor( getNodeColor(joint,JOINT_COLOR) );
-		renderCircle( joint.position , joint.radius );
+		// calculate joint position by
+		// intersecting lines through the two bones
+		// it connects
+		final Vector2 jointPosition = new Vector2();
+		
+		if ( joint.predecessor == null ) 
+		{
+			jointPosition.set( 0 , RobotArm.ROBOTBASE_HEIGHT + Joint.JOINT_RADIUS );
+		} 
+		else 
+		{
+			box1.set( joint.predecessor.getBody().getPosition() , 
+					joint.predecessor.length , 
+					Bone.BONE_THICKNESS , radToDeg( joint.predecessor.getBody().getAngle() ) );
+		
+			final Vector2 start = new Vector2();
+			final Vector2 end = new Vector2();
+			box1.getOrientedLine( start , end );
+			
+			final Vector2 direction = end.cpy().sub( start ).nor().scl( Joint.JOINT_RADIUS);
+			jointPosition.set( end ).add( direction );
+		}
+
+		getBackBufferGraphics().setColor( getNodeColor(joint,JOINT_COLOR) );		
+		renderCircle( jointPosition,joint.radius );
 	}
 	
 	private void renderCircle(Vector2 modelCenterCoords,float modelRadius) 
@@ -303,7 +406,7 @@ public final class MyPanel extends JPanel implements ITickListener
 		graphics.drawLine( (int) centerX , (int)centerY-5 , (int)centerX , (int)centerY+5 );
 	}
 	
-	private Color getNodeColor(Node n,Color regular) {
+	private Color getNodeColor(Node<?> n,Color regular) {
 		if ( selectedNode == n ) {
 			return SELECTION_COLOR;
 		}
@@ -351,51 +454,29 @@ public final class MyPanel extends JPanel implements ITickListener
 		
 		final Graphics2D graphics = getBackBufferGraphics();
 		
+		final Color regularColor  = bone instanceof Gripper ? GRIPPER_BONE_COLOR : BONE_COLOR;
+		graphics.setColor( getNodeColor(bone, regularColor ));
+		renderBox( bone.getBody().getPosition() , bone.length , Bone.BONE_THICKNESS , radToDeg( bone.getBody().getAngle() ) , true );
+		
 		if ( bone instanceof Gripper) 
 		{
 			final Gripper gripper = (Gripper) bone;
 			
-			// end bone
-			graphics.setColor( getNodeColor(bone,END_BONE_COLOR) );
-			graphics.drawLine( (int) p0X , (int) p0Y,(int) p1X,(int) p1Y);
+			// render base plate
+			// TODO: Maybe use gripper.getCurrentBaseplateLength() instead ?
+			graphics.setColor( GRIPPER_BASEPLATE_COLOR );
+			renderBox( gripper.getBasePlateBody().getPosition() , Gripper.BASEPLATE_THICKNESS , gripper.getMaxBaseplateLength() , 
+					radToDeg( gripper.getBasePlateBody().getAngle() ) , true );
 			
-			Vector2 rot = bone.start.cpy().sub( bone.end ).nor().rotate(90);
+			// render upper claw
+			graphics.setColor( GRIPPER_UPPER_CLAW_COLOR );
+			renderBox( gripper.getUpperClawBody().getPosition() ,
+					gripper.getClawLength() , Gripper.CLAW_THICKNESS , radToDeg( gripper.getUpperClawBody().getAngle() ) , true );
 			
-			final float basePlateLength = gripper.getCurrentBaseplateLength();
-			Vector2 plate1 = bone.end.cpy().add( rot.cpy().scl( basePlateLength ) );
-			Vector2 plate2 = bone.end.cpy().add( rot.cpy().scl( -basePlateLength ) );
-			
-			modelToView( plate1 , screenPos );
-			final float p2X = screenPos.x;
-			final float p2Y = screenPos.y;
-			
-			modelToView( plate2 , screenPos );
-			final float p3X = screenPos.x;
-			final float p3Y = screenPos.y;			
-			
-			graphics.drawLine( (int) p2X , (int) p2Y,(int) p3X,(int) p3Y);		
-			
-			rot = bone.end.cpy().sub( bone.start ).nor().scl( gripper.getClawLength() );
-			
-			plate1.add( rot );
-			plate2.add( rot );
-			
-			modelToView( plate1 , screenPos );
-			final float p4X = screenPos.x;
-			final float p4Y = screenPos.y;
-			
-			modelToView( plate2 , screenPos );
-			final float p5X = screenPos.x;
-			final float p5Y = screenPos.y;			
-			
-			graphics.drawLine( (int) p2X , (int) p2Y,(int) p4X,(int) p4Y);		
-			graphics.drawLine( (int) p3X , (int) p3Y,(int) p5X,(int) p5Y);		
-					
-			
-		} else if ( bone.jointB != null ) 
-		{
-			graphics.setColor( getNodeColor(bone,BONE_COLOR) );
-			graphics.drawLine( (int) p0X , (int) p0Y,(int) p1X,(int) p1Y);
+			// render lower claw
+			graphics.setColor( GRIPPER_LOWER_CLAW_COLOR );
+			renderBox( gripper.getLowerClawBody().getPosition() ,
+					gripper.getClawLength() , Gripper.CLAW_THICKNESS , radToDeg( gripper.getLowerClawBody().getAngle() ) , true );			
 		} 
 	}
 	

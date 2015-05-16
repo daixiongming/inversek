@@ -1,8 +1,8 @@
 package de.codesourcery.inversek;
 
-public final class JointAnimator implements ITickListener 
+public final class JointAnimator implements ITickListener, IMathSupport
 {
-	private static final float ACTUATOR_SPEED = 90f;
+	private static final float ACTUATOR_SPEED = 180f;
 	private static final float EPSILON = 0.1f;
 	
 	private final Joint joint;
@@ -66,6 +66,12 @@ public final class JointAnimator implements ITickListener
 			System.out.println("Moving joint "+joint+" by "+inc+" degrees to get from "+currentAngle+" to "+desiredAngle);
 		}
 		joint.addOrientation( inc );
+		float angleInDeg = joint.getOrientationDegrees();
+		if ( angleInDeg > 180 ) { // Box2D uses angles in the range -180...180
+			angleInDeg = angleInDeg - 360;
+		}
+		final float angleInRad = degToRad( angleInDeg );
+		joint.getBody().setLimits( angleInRad, angleInRad ); 
 		
 		if ( elapsedSeconds > 3 ) {
 			System.err.println("Moving joint "+joint+" from "+currentAngle+" degrees to "+desiredAngle+" degrees took more than "+elapsedSeconds+" seconds");			

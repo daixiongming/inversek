@@ -9,7 +9,7 @@ import java.util.Random;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class KinematicsChain implements Iterable<Node>
+public class KinematicsChain implements Iterable<Node<?>>
 {
 	private final List<Joint> joints = new ArrayList<>();
 	private final List<Bone> bones = new ArrayList<>();
@@ -49,7 +49,7 @@ public class KinematicsChain implements Iterable<Node>
 
 	@FunctionalInterface
 	public interface INodeVisitor {
-		public boolean visit(Node n);
+		public boolean visit(Node<?> n);
 	}
 
 	@FunctionalInterface
@@ -100,7 +100,7 @@ public class KinematicsChain implements Iterable<Node>
 		return true;
 	}
 
-	public Stream<Node> stream() {
+	public Stream<Node<?>> stream() {
 		return StreamSupport.stream( this.spliterator(), false);		
 	}
 	
@@ -124,12 +124,12 @@ public class KinematicsChain implements Iterable<Node>
 		throw new NoSuchElementException("Unknown bone ID '"+id+"'");
 	}
 
-	public Iterator<Node> iterator() 
+	public Iterator<Node<?>> iterator() 
 	{
-		return new Iterator<Node>() 
+		return new Iterator<Node<?>>() 
 				{
-			private List<? extends Node> currentCollection = joints;
-			private Iterator<? extends Node> it = currentCollection.iterator();
+			private List<? extends Node<?>> currentCollection = joints;
+			private Iterator<? extends Node<?>> it = currentCollection.iterator();
 
 			@Override
 			public boolean hasNext() 
@@ -146,7 +146,7 @@ public class KinematicsChain implements Iterable<Node>
 			}
 
 			@Override
-			public Node next() 
+			public Node<?> next() 
 			{
 				if ( ! it.hasNext() ) 
 				{

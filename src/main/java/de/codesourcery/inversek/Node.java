@@ -1,9 +1,8 @@
 package de.codesourcery.inversek;
 
-import com.badlogic.gdx.physics.box2d.Body;
 
 
-public abstract class Node 
+public abstract class Node<T> 
 {
 	public static enum NodeType 
 	{
@@ -12,15 +11,16 @@ public abstract class Node
 	
 	private NodeType type;
 	private String id;
-	private Body body;
+	private T body;
 	
-	public Node(String id,NodeType type) {
+	public Node(T body,String id,NodeType type) {
 		if (type == null) {
 			throw new IllegalArgumentException("type must not be NULL");
 		}
 		if ( id == null || id.trim().length() == 0 ) {
 			throw new IllegalArgumentException("ID must not be NULL/blank");
 		}
+		this.body = body;
 		this.id = id;
 		this.type = type;
 	}
@@ -33,11 +33,11 @@ public abstract class Node
 		return this.type;
 	}
 	
-	public void setBody(Body body) {
+	public void setBody(T body) {
 		this.body = body;
 	}
 	
-	public Body getBody() {
+	public T getBody() {
 		return body;
 	}
 	

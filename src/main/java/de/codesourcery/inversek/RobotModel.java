@@ -3,20 +3,20 @@ package de.codesourcery.inversek;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Model
+public class RobotModel
 {
 	private final List<KinematicsChain> chains=new ArrayList<>();
 	
-	public Model() {
+	public RobotModel() {
 	}
 
-	public Model(Model other) 
+	public RobotModel(RobotModel other) 
 	{
 		other.chains.forEach( chain -> chains.add(chain.createCopy() ) );
 	}
 
-	public Model createCopy() {
-		return new Model(this);
+	public RobotModel createCopy() {
+		return new RobotModel(this);
 	}
 
 	public void addKinematicsChain(KinematicsChain chain) {

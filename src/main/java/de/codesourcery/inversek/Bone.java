@@ -2,7 +2,7 @@ package de.codesourcery.inversek;
 
 import com.badlogic.gdx.math.Vector2;
 
-public class Bone extends Node
+public class Bone extends Node<com.badlogic.gdx.physics.box2d.Body>
 {
 	public static final float BONE_THICKNESS = 2f;
 	
@@ -15,7 +15,7 @@ public class Bone extends Node
 	public final Vector2 end = new Vector2();
 	
 	public Bone(String name,Joint jointA, Joint jointB,float length) {
-		super(name,NodeType.BONE);
+		super(null,name,NodeType.BONE);
 		this.length = length;
 		this.jointA = jointA;
 		this.jointB = jointB;
@@ -23,7 +23,7 @@ public class Bone extends Node
 	
 	protected Bone(Bone other, Joint jointA, Joint jointB) 
 	{
-		super(other.getId(),NodeType.BONE);
+		super(other.getBody() , other.getId(),NodeType.BONE);
 		this.start.set( other.start );
 		this.end.set( other.end );
 		this.length = other.length;
@@ -45,7 +45,7 @@ public class Bone extends Node
 	
 	public void forwardKinematics() 
 	{
-		start.set( jointA.radius + Joint.JOINT_BONE_GAP , 0 );
+		start.set( jointA.radius , 0 );
 		
 		final float orientationDegrees = jointA.getSumOrientationDegrees();
 		
@@ -59,7 +59,7 @@ public class Bone extends Node
 		
 		if ( jointB != null ) 
 		{
-			tmp.set( length + jointB.radius + Joint.JOINT_BONE_GAP , 0 );
+			tmp.set( length + jointB.radius , 0 );
 			tmp.rotate( orientationDegrees );
 			tmp.add( start );
 			jointB.position.set( tmp );
