@@ -6,9 +6,6 @@ import com.badlogic.gdx.physics.box2d.joints.PrismaticJoint;
 
 public class Gripper extends Bone 
 {
-	public static final float BASEPLATE_THICKNESS = 3;
-	public static final float CLAW_THICKNESS = 3;
-	
 	private final float basePlateLength;
 	private final float clawLength;
 	private final Vector2 positioningEnd = new Vector2();

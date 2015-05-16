@@ -7,6 +7,7 @@
     <classToRun>de.codesourcery.inversek.Main</classToRun>
     <libgdx.version>1.6.0</libgdx.version>
     <libgdx.box2d.baseUrl>http://libgdx.badlogicgames.com/nightlies/dist/extensions/gdx-box2d</libgdx.box2d.baseUrl>
+    <libgdx.baseUrl>http://libgdx.badlogicgames.com/nightlies/dist</libgdx.baseUrl>
   </properties>
   <dependencies>
     <dependency>
@@ -39,7 +40,7 @@
         <version>1.1.0</version>
         <executions>
           <execution>
-            <id>desktop</id>
+            <id>desktop-box2d</id>
             <phase>process-resources</phase>
             <goals>
               <goal>wget</goal>
@@ -52,7 +53,28 @@
             </configuration>
           </execution>
           <execution>
+            <id>desktop-gdx</id>
+            <phase>process-resources</phase>
+            <goals><goal>wget</goal></goals>
+            <configuration>
+                <cacheDirectory>${project.build.directory}/download-cache</cacheDirectory>
+                <url>${libgdx.baseUrl}/gdx-natives.jar</url>
+                <unpack>true</unpack>
+                <outputDirectory>${project.build.directory}/desktop</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
             <id>x86-gdx</id>
+            <phase>process-resources</phase>
+            <goals><goal>wget</goal></goals>
+            <configuration>
+              <cacheDirectory>${project.build.directory}/download-cache/x86</cacheDirectory>
+              <url>${libgdx.baseUrl}/x86/libgdx64.so</url>
+              <outputDirectory>${project.build.directory}/desktop</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>x86-gdx-box2d</id>
             <phase>process-resources</phase>
             <goals>
               <goal>wget</goal>
@@ -61,42 +83,6 @@
               <cacheDirectory>${project.build.directory}/download-cache/x86</cacheDirectory>
               <url>${libgdx.box2d.baseUrl}/x86/libgdx-box2d.so</url>
               <outputDirectory>${project.build.directory}/x86</outputDirectory>
-            </configuration>
-          </execution>
-          <execution>
-            <id>armeabi-gdx</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>wget</goal>
-            </goals>
-            <configuration>
-              <cacheDirectory>${project.build.directory}/download-cache/armeabi</cacheDirectory>
-              <url>${libgdx.box2d.baseUrl}/armeabi/libgdx-box2d.so</url>
-              <outputDirectory>${project.build.directory}/armeabi</outputDirectory>
-            </configuration>
-          </execution>
-          <execution>
-            <id>armeabi-v7a-gdx</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>wget</goal>
-            </goals>
-            <configuration>
-              <cacheDirectory>${project.build.directory}/download-cache/armeabi-v7a</cacheDirectory>
-              <url>${libgdx.box2d.baseUrl}/armeabi-v7a/libgdx-box2d.so</url>
-              <outputDirectory>${project.build.directory}/armeabi-v7a</outputDirectory>
-            </configuration>
-          </execution>
-          <execution>
-            <id>ios-gdx</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>wget</goal>
-            </goals>
-            <configuration>
-              <cacheDirectory>${project.build.directory}/download-cache/ios</cacheDirectory>
-              <url>${libgdx.box2d.baseUrl}/ios/libgdx-box2d.a</url>
-              <outputDirectory>${project.build.directory}/ios</outputDirectory>
             </configuration>
           </execution>
         </executions>

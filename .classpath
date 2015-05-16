@@ -6,6 +6,7 @@
 	<classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx-platform/1.6.0/gdx-platform-1.6.0.jar"/>
 	<classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx-box2d/1.6.0/gdx-box2d-1.6.0.jar" sourcepath="M2_REPO/com/badlogicgames/gdx/gdx-box2d/1.6.0/gdx-box2d-1.6.0-sources.jar"/>
 	<classpathentry kind="var" path="M2_REPO/com/badlogicgames/gdx/gdx-box2d-platform/1.6.0/gdx-box2d-platform-1.6.0.jar"/>
-	<classpathentry kind="lib" path="target/desktop"/>
+	<classpathentry kind="lib" path="/home/tobi/luna_workspace/inversek/target/download-cache/gdx-box2d-natives.jar"/>
+	<classpathentry kind="lib" path="/home/tobi/luna_workspace/inversek/target/download-cache/gdx-natives.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>

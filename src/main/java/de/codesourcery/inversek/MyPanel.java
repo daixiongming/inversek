@@ -10,11 +10,18 @@ import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JPanel;
 
+import com.badlogic.gdx.graphics.Camera;
+import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.math.Matrix3;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
+import com.badlogic.gdx.utils.SharedLibraryLoader;
 
 import de.codesourcery.inversek.WorldModel.Ball;
 
@@ -36,6 +43,10 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	protected static final Color SELECTION_COLOR = Color.GREEN;
 	protected static final Color HOVER_COLOR = Color.MAGENTA;
 	
+	protected static final Box tmpBox = new Box();
+	
+	protected static final Matrix3 MODEL_MATRIX = new Matrix3().setToScaling(  200, 200 );
+	
 	private final RobotArm robotModel;
 	
 	private final Object INIT_LOCK = new Object();
@@ -46,9 +57,6 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	
 	private final WorldModel worldModel;
 	
-	private final Box box1 = new Box();
-	private final Box box2 = new Box();	
-	
 	private final BufferedImage[] buffers = new BufferedImage[2]; 
 	private final Graphics2D[] graphics = new Graphics2D[2];
 	private int bufferIdx = 0;
@@ -58,11 +66,19 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	
 	public volatile Point addBallAt;
 	
-	public Node<?> selectedNode;
-	public Node<?> hoveredNode;
+	public volatile Node<?> selectedNode;
+	public volatile Node<?> hoveredNode;
+	
+	private volatile Point currentMousePosition;
 	
 	public volatile boolean desiredPositionChanged = false;
 	public volatile Point desiredPosition;
+	
+	private final OrthographicCamera camera;
+	
+	static {
+		new SharedLibraryLoader().load("gdx");
+	}
 	
 	private final MouseAdapter mouseListener = new MouseAdapter() 
 	{
@@ -97,6 +113,8 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		public void mouseMoved(java.awt.event.MouseEvent e) 
 		{
 			final Point p = e.getPoint();
+			currentMousePosition = new Point(p);
+			
 			final Node<?> n = getNodeAt( p.x ,p.y );
 			if ( hoveredNode != n ) {
 				hoveredNode = n;
@@ -169,6 +187,9 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	
 	public MyPanel(RobotArm arm,WorldModel worldModel) 
 	{
+		camera = new OrthographicCamera( 320 , 240 );
+		updateCamera( camera , 320 , 240 );
+		
 		this.robotModel = arm;
 		this.worldModel = worldModel;
 		addMouseListener( mouseListener );
@@ -216,6 +237,8 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		
 		renderFPS( deltaSeconds );
 		
+		renderMousePosition();
+		
 		renderSelectionInfo();
 		
 		renderDesiredPosition();
@@ -236,17 +259,22 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		// render robot arm base
 		final Body robotBase = robotModel.getBase();
 		getBackBufferGraphics().setColor( ROBOT_BASE_COLOR );
-		renderBox( robotBase.getPosition() , RobotArm.ROBOTBASE_WIDTH , RobotArm.ROBOTBASE_HEIGHT , 0 , true );
+		renderBox( robotBase.getPosition() , Constants.ROBOTBASE_WIDTH , Constants.ROBOTBASE_HEIGHT , 0 , true );
 		
 		// render world objects
-		worldModel.getBalls().forEach( this::renderBall );
+		final List<Ball> balls = new ArrayList<>( worldModel.getBalls() ); // need to copy here since destroying balls will modify the collection
+		for ( Ball b : balls ) 
+		{
+			if ( ! renderBall( b ) ) {
+				worldModel.destroyBall( b );
+			}
+		}
 	}
-	
 
 	private void renderBox(Vector2 centerInWorldCoords,float xExtent,float yExtent,float angleInDegrees,boolean filled) 
 	{
-		box1.set( centerInWorldCoords , xExtent , yExtent , angleInDegrees );
-		renderBox( box1 , filled );
+		tmpBox.set( centerInWorldCoords , xExtent , yExtent , angleInDegrees );
+		renderBox( tmpBox , filled );
 	}
 
 	private void renderBox(Box box,boolean filled) 
@@ -256,19 +284,19 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		
 		final Vector2 tmp = new Vector2();
 		
-		modelToView( box1.p0 , tmp );
+		modelToView( tmpBox.p0 , tmp );
 		x[0] = (int) tmp.x;
 		y[0] = (int) tmp.y;
 		
-		modelToView( box1.p1 , tmp );
+		modelToView( tmpBox.p1 , tmp );
 		x[1] = (int) tmp.x;
 		y[1] = (int) tmp.y;
 		
-		modelToView( box1.p2 , tmp );
+		modelToView( tmpBox.p2 , tmp );
 		x[2] = (int) tmp.x;
 		y[2] = (int) tmp.y;
 		
-		modelToView( box1.p3 , tmp );
+		modelToView( tmpBox.p3 , tmp );
 		x[3] = (int) tmp.x;
 		y[3] = (int) tmp.y;
 		
@@ -279,10 +307,10 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		}
 	}
 	
-	private void renderBall(Ball ball) 
+	private boolean renderBall(Ball ball) 
 	{
 		getBackBufferGraphics().setColor( BALL_COLOR );
-		renderCircle( ball.getPosition() , ball.radius );
+		return renderCircle( ball.getPosition() , ball.radius );
 	}
 	
 	private void renderFPS(float deltaSeconds) 
@@ -333,6 +361,22 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		graphics.setColor(Color.BLACK);
 		graphics.drawString( "SELECTION: "+selectedNode.getId()+details, 5 , 15 );
 	}
+	
+	private void renderMousePosition() 
+	{
+		final Point tmp = currentMousePosition;
+		if ( tmp == null ) {
+			return;
+		}
+
+		final Vector2 modelCoords = viewToModel( tmp );
+		final Vector2 viewCoords = new Vector2();
+		modelToView( modelCoords , viewCoords );
+		
+		final Graphics2D graphics = getBackBufferGraphics();
+		graphics.setColor(Color.BLACK);
+		graphics.drawString( "Mouse @ "+tmp+" (model: "+modelCoords+" / converted: "+viewCoords+")", 5 , 35 );
+	}	
 
 	private boolean renderNode(Node<?> n) 
 	{
@@ -358,27 +402,27 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		
 		if ( joint.predecessor == null ) 
 		{
-			jointPosition.set( 0 , RobotArm.ROBOTBASE_HEIGHT + Joint.JOINT_RADIUS );
+			jointPosition.set( 0 , Constants.ROBOTBASE_HEIGHT + Constants.JOINT_RADIUS );
 		} 
 		else 
 		{
-			box1.set( joint.predecessor.getBody().getPosition() , 
+			tmpBox.set( joint.predecessor.getBody().getPosition() , 
 					joint.predecessor.length , 
-					Bone.BONE_THICKNESS , radToDeg( joint.predecessor.getBody().getAngle() ) );
+					Constants.BONE_THICKNESS , radToDeg( joint.predecessor.getBody().getAngle() ) );
 		
 			final Vector2 start = new Vector2();
 			final Vector2 end = new Vector2();
-			box1.getOrientedLine( start , end );
+			tmpBox.getOrientedLine( start , end );
 			
-			final Vector2 direction = end.cpy().sub( start ).nor().scl( Joint.JOINT_RADIUS);
+			final Vector2 direction = end.cpy().sub( start ).nor().scl( Constants.JOINT_RADIUS);
 			jointPosition.set( end ).add( direction );
 		}
 
 		getBackBufferGraphics().setColor( getNodeColor(joint,JOINT_COLOR) );		
-		renderCircle( jointPosition,joint.radius );
+		renderCircle( jointPosition,joint.radius);
 	}
 	
-	private void renderCircle(Vector2 modelCenterCoords,float modelRadius) 
+	private boolean renderCircle(Vector2 modelCenterCoords,float modelRadius) 
 	{
 		final Vector2 screenPos = new Vector2();
 		modelToView( modelCenterCoords , screenPos );
@@ -386,24 +430,30 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		final float centerX = screenPos.x;
 		final float centerY = screenPos.y;
 		
-		// transform radius
-		screenPos.x = modelRadius;
-		screenPos.y = modelRadius;
-		modelToView( screenPos , screenPos );
+		final boolean isOnScreen = !( centerX < 0 || centerY < 0 || centerX > getWidth() || centerY > getHeight() );
 		
-		final float dx = screenPos.x - (float) screenCenterX;
-		final float dy = screenCenterY - screenPos.y;
-		
-		final float radWidth = dx*2f;
-		final float radHeight = dy*2f;
-		
-		final Graphics2D graphics = getBackBufferGraphics();
-		
-		graphics.fillArc( (int) ( centerX - radWidth/2f) ,(int) (centerY-radHeight/2f) , (int) radWidth , (int) radHeight, 0 , 360 );
-		
-		graphics.setColor(Color.BLACK);
-		graphics.drawLine( (int) centerX -5 , (int)centerY , (int)centerX + 5 , (int)centerY );
-		graphics.drawLine( (int) centerX , (int)centerY-5 , (int)centerX , (int)centerY+5 );
+		if ( isOnScreen ) 
+		{
+			// transform radius
+			screenPos.x = modelRadius;
+			screenPos.y = modelRadius;
+			modelToView( screenPos , screenPos );
+			
+			final float dx = screenPos.x - (float) screenCenterX;
+			final float dy = screenCenterY - screenPos.y;
+			
+			final float radWidth = dx*2f;
+			final float radHeight = dy*2f;
+			
+			final Graphics2D graphics = getBackBufferGraphics();
+			
+			graphics.fillArc( (int) ( centerX - radWidth/2f) ,(int) (centerY-radHeight/2f) , (int) radWidth , (int) radHeight, 0 , 360 );
+			graphics.setColor(Color.BLACK);
+			
+			graphics.drawLine( (int) centerX -5 , (int)centerY , (int)centerX + 5 , (int)centerY );
+			graphics.drawLine( (int) centerX , (int)centerY-5 , (int)centerX , (int)centerY+5 );
+		}
+		return isOnScreen;
 	}
 	
 	private Color getNodeColor(Node<?> n,Color regular) {
@@ -441,22 +491,11 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	
 	private void renderBone(Bone bone) 
 	{
-		final Vector2 screenPos = new Vector2();
-		modelToView( bone.start , screenPos );
-		
-		final float p0X = screenPos.x;
-		final float p0Y = screenPos.y;
-		
-		modelToView( bone.end , screenPos );
-		
-		final float p1X = screenPos.x;
-		final float p1Y = screenPos.y;		
-		
 		final Graphics2D graphics = getBackBufferGraphics();
 		
 		final Color regularColor  = bone instanceof Gripper ? GRIPPER_BONE_COLOR : BONE_COLOR;
 		graphics.setColor( getNodeColor(bone, regularColor ));
-		renderBox( bone.getBody().getPosition() , bone.length , Bone.BONE_THICKNESS , radToDeg( bone.getBody().getAngle() ) , true );
+		renderBox( bone.getBody().getPosition() , bone.length , Constants.BONE_THICKNESS , radToDeg( bone.getBody().getAngle() ) , true );
 		
 		if ( bone instanceof Gripper) 
 		{
@@ -465,18 +504,18 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 			// render base plate
 			// TODO: Maybe use gripper.getCurrentBaseplateLength() instead ?
 			graphics.setColor( GRIPPER_BASEPLATE_COLOR );
-			renderBox( gripper.getBasePlateBody().getPosition() , Gripper.BASEPLATE_THICKNESS , gripper.getMaxBaseplateLength() , 
+			renderBox( gripper.getBasePlateBody().getPosition() , Constants.BASEPLATE_THICKNESS , gripper.getMaxBaseplateLength() , 
 					radToDeg( gripper.getBasePlateBody().getAngle() ) , true );
 			
 			// render upper claw
 			graphics.setColor( GRIPPER_UPPER_CLAW_COLOR );
 			renderBox( gripper.getUpperClawBody().getPosition() ,
-					gripper.getClawLength() , Gripper.CLAW_THICKNESS , radToDeg( gripper.getUpperClawBody().getAngle() ) , true );
+					gripper.getClawLength() , Constants.CLAW_THICKNESS , radToDeg( gripper.getUpperClawBody().getAngle() ) , true );
 			
 			// render lower claw
 			graphics.setColor( GRIPPER_LOWER_CLAW_COLOR );
 			renderBox( gripper.getLowerClawBody().getPosition() ,
-					gripper.getClawLength() , Gripper.CLAW_THICKNESS , radToDeg( gripper.getLowerClawBody().getAngle() ) , true );			
+					gripper.getClawLength() , Constants.CLAW_THICKNESS , radToDeg( gripper.getLowerClawBody().getAngle() ) , true );			
 		} 
 	}
 	
@@ -502,21 +541,37 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		r.height = Math.abs( (int) (p1Y - p0Y) );
 	}
 	
-	public Vector2 viewToModel(Point point) {
+	public Vector2 viewToModel(Point point) 
+	{
+		final Vector3 coords = new Vector3(point.x , getHeight() - point.y,0);
+		unproject( coords , 0 , 0 , getWidth() , getHeight() );
 		
-		/*
-		viewVector.x = screenCenterX + modelVector.x;
-		viewVector.y = screenCenterY - modelVector.y;		 
-		 */
-		float x = point.x - screenCenterX;
-		float y = screenCenterY - point.y;
-		return new Vector2(x,y);
+		// libgdx assumes the origin of view coordinates in the LOWER left corner
+		// of the screen, need to fix Y coordinate here		
+		return new Vector2(coords.x,coords.y);
 	}	
 	
 	private void modelToView(Vector2 modelVector,Vector2 viewVector) 
 	{
-		viewVector.x = screenCenterX + modelVector.x;
-		viewVector.y = screenCenterY - modelVector.y;
+		Vector3 result = new Vector3( modelVector , 0 );
+		camera.project( result  , 0 , 0 , getWidth() , getHeight() );
+		
+		// libgdx assumes the origin of view coordinates in the LOWER left corner
+		// of the screen, need to fix Y coordinate here
+		viewVector.x = result.x;
+		viewVector.y = result.y+1;
+	}	
+	
+	public Vector3 unproject (Vector3 screenCoords, float viewportX, float viewportY, float viewportWidth, float viewportHeight) {
+		float x = screenCoords.x, y = screenCoords.y;
+		x = x - viewportX;
+		y = viewportHeight - y - 1;
+		y = y - viewportY;
+		screenCoords.x = (2 * x) / viewportWidth - 1;
+		screenCoords.y = (2 * y) / viewportHeight - 1;
+		screenCoords.z = 2 * screenCoords.z - 1;
+		screenCoords.prj(camera.invProjectionView);
+		return screenCoords;
 	}	
 	
 	private void clearBackBuffer() 
@@ -573,10 +628,27 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 				graphics[1].getRenderingHints().put( RenderingHints.KEY_ANTIALIASING , RenderingHints.VALUE_ANTIALIAS_ON );
 				graphics[1].getRenderingHints().put( RenderingHints.KEY_RENDERING , RenderingHints.VALUE_RENDER_QUALITY);
 				
+				updateCamera(camera,getWidth(),getHeight());
+				
 				initialized = true;
 				render(1);
 			}
 		}
+	}
+	
+	private static void updateCamera(OrthographicCamera camera,int viewportWidth,int viewportHeight) 
+	{
+		camera.viewportWidth = viewportWidth;
+		camera.viewportHeight = viewportHeight;
+		
+		camera.direction.set( 0 , 0, 1 );
+		camera.position.set(0,0,-5f);
+		camera.near = 1;		
+		camera.far = 100;
+		camera.zoom = 0.5f;
+		
+		System.out.println("Setting camera viewport to "+viewportWidth+" x "+viewportHeight);
+		camera.update(true);
 	}
 
 	@Override

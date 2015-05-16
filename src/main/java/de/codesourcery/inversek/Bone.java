@@ -4,8 +4,6 @@ import com.badlogic.gdx.math.Vector2;
 
 public class Bone extends Node<com.badlogic.gdx.physics.box2d.Body>
 {
-	public static final float BONE_THICKNESS = 2f;
-	
 	public float length;
 	
 	public final Joint jointA;

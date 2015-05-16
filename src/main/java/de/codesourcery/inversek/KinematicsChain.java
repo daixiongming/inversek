@@ -166,7 +166,7 @@ public class KinematicsChain implements Iterable<Node<?>>
 		if ( joints.stream().anyMatch( j -> j.getId().equals( id ) ) ) {
 			throw new IllegalArgumentException("Duplicate joint '"+id+"'");
 		}
-		final Joint j = new Joint(id,Joint.JOINT_RADIUS,orientation);
+		final Joint j = new Joint(id,Constants.JOINT_RADIUS,orientation);
 		this.joints.add( j );
 		return j;
 	}

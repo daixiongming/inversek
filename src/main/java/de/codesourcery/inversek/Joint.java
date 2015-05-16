@@ -9,8 +9,6 @@ import com.badlogic.gdx.physics.box2d.joints.RevoluteJoint;
 
 public class Joint extends Node<RevoluteJoint> implements IMathSupport
 {
-	public static final float JOINT_RADIUS = 10f;
-	
 	private float orientationDegrees = 0;
 	private final Vector2 orientation = new Vector2();
 	

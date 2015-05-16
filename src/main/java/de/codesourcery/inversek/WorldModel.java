@@ -25,11 +25,9 @@ import com.badlogic.gdx.physics.box2d.joints.WeldJointDef;
 
 public class WorldModel implements ITickListener , IMathSupport
 {
-	private static final float PHYSICS_TIMESTEP = 1/300f;
+	private static final float PHYSICS_TIMESTEP = 1/30f;
 	private static final int VELOCITY_ITERATIONS = 6;
 	private static final int POSITION_ITERATIONS = 2;
-
-	private static final float BALL_RADIUS =10f;
 
 	private static final float DENSITY = 0.01f;
 
@@ -85,7 +83,7 @@ public class WorldModel implements ITickListener , IMathSupport
 	private void setupFloorPlane() 
 	{
 		final float floorThickness = 20;
-		final Vector2 position = new Vector2(0, floorY-floorThickness+BALL_RADIUS);
+		final Vector2 position = new Vector2(0, floorY-floorThickness+Constants.BALL_RADIUS);
 		newStaticBody( ItemType.GROUND , position )
 		.boxShape(2000 , floorThickness)
 		.collidesWith(ItemType.BALL)
@@ -98,12 +96,19 @@ public class WorldModel implements ITickListener , IMathSupport
 
 		// Create our body in the world using our body definition
 		final Body body = newDynamicBody(ItemType.BALL,new Vector2(x,y))
-				.circleShape( BALL_RADIUS )
+				.circleShape( Constants.BALL_RADIUS )
 				.collidesWith( ItemType.GROUND  , ItemType.BONE )
 				.restitution( 0.3f )
 				.build();
 
-		balls.add( new Ball( body , BALL_RADIUS ) );
+		balls.add( new Ball( body , Constants.BALL_RADIUS ) );
+	}
+	
+	public void destroyBall(Ball ball) 
+	{
+		System.out.println("Destroyed ball "+ball);
+		balls.remove( ball );
+		world.destroyBody( ball.body );
 	}
 
 	@Override
@@ -168,8 +173,8 @@ public class WorldModel implements ITickListener , IMathSupport
 		final KinematicsChain chain=arm.getModel().getChains().get(0);
 		final List<Bone> sortedBones = sortLeftToRight( chain.getBones() );
 
-		final float y = RobotArm.ROBOTBASE_HEIGHT;
-		float x1 =  de.codesourcery.inversek.Joint.JOINT_RADIUS;
+		final float y = Constants.ROBOTBASE_HEIGHT;
+		float x1 =  de.codesourcery.inversek.Constants.JOINT_RADIUS;
 		for ( Bone b : sortedBones ) 
 		{
 			if ( b instanceof Gripper ) {
@@ -177,11 +182,11 @@ public class WorldModel implements ITickListener , IMathSupport
 			} else {
 				createHorizontalBone( new Vector2( x1 + b.length/2 ,y) , b );
 			}
-			x1 += b.length + 2 * de.codesourcery.inversek.Joint.JOINT_RADIUS;
+			x1 += b.length + 2 * de.codesourcery.inversek.Constants.JOINT_RADIUS;
 		}
 
 		// create joints
-		final Vector2 center = new Vector2(0 , RobotArm.ROBOTBASE_HEIGHT ); 		
+		final Vector2 center = new Vector2(0 , Constants.ROBOTBASE_HEIGHT ); 		
 		for ( Bone b : sortedBones ) 
 		{
 			final de.codesourcery.inversek.Joint joint = b.jointA;
@@ -192,7 +197,7 @@ public class WorldModel implements ITickListener , IMathSupport
 			final Body left = joint.predecessor == null ? robotBase: joint.predecessor.getBody();
 			final Body right = joint.successor.getBody();
 			registerJoint(joint,left,right);
-			center.add( 2*de.codesourcery.inversek.Joint.JOINT_RADIUS+joint.successor.length , 0 );
+			center.add( 2*de.codesourcery.inversek.Constants.JOINT_RADIUS+joint.successor.length , 0 );
 		}
 
 		// update positions
@@ -205,12 +210,12 @@ public class WorldModel implements ITickListener , IMathSupport
 		def.collideConnected=false;
 		def.bodyA = predecessor;
 		if ( joint.predecessor == null ) { // attached to base
-			def.localAnchorA.set( 0 , RobotArm.ROBOTBASE_HEIGHT + Joint.JOINT_RADIUS);
+			def.localAnchorA.set( 0 , Constants.ROBOTBASE_HEIGHT + Constants.JOINT_RADIUS);
 		} else {
-			def.localAnchorA.set( joint.predecessor.length/2+Joint.JOINT_RADIUS , 0 );
+			def.localAnchorA.set( joint.predecessor.length/2+Constants.JOINT_RADIUS , 0 );
 		}
 		def.bodyB = successor;
-		def.localAnchorB.set( -joint.successor.length/2 - Joint.JOINT_RADIUS , 0 );
+		def.localAnchorB.set( -joint.successor.length/2 - Constants.JOINT_RADIUS , 0 );
 		def.enableLimit = true;
 		float angleLimit = degToRad( convertAngle( joint.getOrientationDegrees() ) );
 		def.lowerAngle = angleLimit;
@@ -223,9 +228,9 @@ public class WorldModel implements ITickListener , IMathSupport
 
 	private Body createRobotBase() 
 	{
-		final Vector2 center = new Vector2(0,RobotArm.ROBOTBASE_HEIGHT/2);
+		final Vector2 center = new Vector2(0,Constants.ROBOTBASE_HEIGHT/2);
 		return newStaticBody( ItemType.BONE, center )
-				.boxShape( RobotArm.ROBOTBASE_WIDTH , RobotArm.ROBOTBASE_HEIGHT ) 
+				.boxShape( Constants.ROBOTBASE_WIDTH , Constants.ROBOTBASE_HEIGHT ) 
 				.collidesWith(ItemType.BALL)
 				.build();
 	}
@@ -233,7 +238,7 @@ public class WorldModel implements ITickListener , IMathSupport
 	private Body createHorizontalBone(Vector2 center,Bone bone) 
 	{
 		final Body body = newDynamicBody( ItemType.BONE, center)
-				.boxShape( bone.length, Bone.BONE_THICKNESS ) 
+				.boxShape( bone.length, Constants.BONE_THICKNESS ) 
 				.collidesWith( ItemType.BALL )
 				.gravityScale(0)
 				.build();
@@ -265,27 +270,27 @@ public class WorldModel implements ITickListener , IMathSupport
 		final Body gripperBase = createHorizontalBone( center , gripper );		
 		
 		// create base plate
-		final Vector2 basePlateCenter = new Vector2( center.x + gripper.length/2 + Gripper.BASEPLATE_THICKNESS/2f , center.y );
+		final Vector2 basePlateCenter = new Vector2( center.x + gripper.length/2 + Constants.BASEPLATE_THICKNESS/2f , center.y );
 		final BoxBuilder basePlateBuilder = newDynamicBody( ItemType.BONE , basePlateCenter );
-		basePlateBuilder.boxShape( Gripper.BASEPLATE_THICKNESS , gripper.getMaxBaseplateLength() );
+		basePlateBuilder.boxShape( Constants.BASEPLATE_THICKNESS , gripper.getMaxBaseplateLength() );
 		basePlateBuilder.gravityScale(0);
 		final Body basePlate = basePlateBuilder.collidesWith(ItemType.BALL).build();
 		
 		// create lower part of claw
-		final Vector2 lowerClawCenter = new Vector2( basePlateCenter.x + Gripper.BASEPLATE_THICKNESS/2f + gripper.getClawLength()/2f,
-				basePlateCenter.y - gripper.getMaxBaseplateLength()/2 + Gripper.CLAW_THICKNESS/2f );
+		final Vector2 lowerClawCenter = new Vector2( basePlateCenter.x + Constants.BASEPLATE_THICKNESS/2f + gripper.getClawLength()/2f,
+				basePlateCenter.y - gripper.getMaxBaseplateLength()/2 + Constants.CLAW_THICKNESS/2f );
 		
 		final BoxBuilder lowerClawBuilder = newDynamicBody( ItemType.BONE , lowerClawCenter )
-				.boxShape( gripper.getClawLength() , Gripper.CLAW_THICKNESS )
+				.boxShape( gripper.getClawLength() , Constants.CLAW_THICKNESS )
 				.gravityScale( 0 )
 				.collidesWith( ItemType.BALL );
 		final Body lowerClaw = lowerClawBuilder.build();
 				
 		// create upper part of claw
-		final Vector2 upperClawCenter = new Vector2( basePlateCenter.x + Gripper.BASEPLATE_THICKNESS/2f + gripper.getClawLength()/2f,
-				basePlateCenter.y + gripper.getMaxBaseplateLength()/2 - Gripper.CLAW_THICKNESS/2f );
+		final Vector2 upperClawCenter = new Vector2( basePlateCenter.x + Constants.BASEPLATE_THICKNESS/2f + gripper.getClawLength()/2f,
+				basePlateCenter.y + gripper.getMaxBaseplateLength()/2 - Constants.CLAW_THICKNESS/2f );
 		final BoxBuilder upperClawBuilder = newDynamicBody( ItemType.BONE , upperClawCenter )
-				.boxShape( gripper.getClawLength() , Gripper.CLAW_THICKNESS )
+				.boxShape( gripper.getClawLength() , Constants.CLAW_THICKNESS )
 				.gravityScale( 0 )
 				.collidesWith( ItemType.BALL );
 		final Body upperClaw = upperClawBuilder.build();		
@@ -296,7 +301,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		distJointDef.bodyA = gripperBase;
 		distJointDef.localAnchorA.set( gripper.length/2, 0 );
 		distJointDef.bodyB = basePlate; 
-		distJointDef.localAnchorB.set( -Gripper.BASEPLATE_THICKNESS/2f , 0 );
+		distJointDef.localAnchorB.set( -Constants.BASEPLATE_THICKNESS/2f , 0 );
 		// distJointDef.length = 0;
 		world.createJoint( distJointDef );
 		
@@ -304,7 +309,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		final PrismaticJointDef lowerJointDef = new PrismaticJointDef();
 		lowerJointDef.collideConnected=false;
 		lowerJointDef.bodyA = basePlate;
-		lowerJointDef.localAnchorA.set( Gripper.BASEPLATE_THICKNESS/2 , -gripper.getMaxBaseplateLength()/2f - Gripper.CLAW_THICKNESS/2f );
+		lowerJointDef.localAnchorA.set( Constants.BASEPLATE_THICKNESS/2 , -gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS/2f );
 		lowerJointDef.bodyB = lowerClaw; 
 		lowerJointDef.localAnchorB.set( -gripper.getClawLength()/2f , 0 ); 
 		lowerJointDef.referenceAngle = 0;
@@ -312,7 +317,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		lowerJointDef.localAxisA.set(0,1); 
 		lowerJointDef.enableLimit = true;
 		lowerJointDef.lowerTranslation=0;
-		lowerJointDef.upperTranslation=gripper.getMaxBaseplateLength()/2f - Gripper.CLAW_THICKNESS;
+		lowerJointDef.upperTranslation=gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS;
 		
 		final PrismaticJoint lowerClawJoint = (PrismaticJoint) world.createJoint(lowerJointDef);
 		
@@ -320,7 +325,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		final PrismaticJointDef upperJointDef = new PrismaticJointDef();
 		upperJointDef.collideConnected=false;
 		upperJointDef.bodyA = basePlate;
-		upperJointDef.localAnchorA.set( Gripper.BASEPLATE_THICKNESS/2 , gripper.getMaxBaseplateLength()/2f - Gripper.CLAW_THICKNESS/2f );
+		upperJointDef.localAnchorA.set( Constants.BASEPLATE_THICKNESS/2 , gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS/2f );
 		upperJointDef.bodyB = upperClaw; 
 		upperJointDef.localAnchorB.set( -gripper.getClawLength()/2f , 0  ); 
 		upperJointDef.referenceAngle = 0;
@@ -328,7 +333,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		upperJointDef.localAxisA.set(0,1); 
 		upperJointDef.enableLimit = true;
 		upperJointDef.lowerTranslation=0; 
-		upperJointDef.upperTranslation= gripper.getMaxBaseplateLength()/2f - Gripper.CLAW_THICKNESS;
+		upperJointDef.upperTranslation= gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS;
 		
 		final PrismaticJoint upperClawJoint = (PrismaticJoint) world.createJoint(upperJointDef);
 		

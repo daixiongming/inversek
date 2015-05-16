@@ -14,9 +14,6 @@ import de.codesourcery.inversek.Joint.MovementRange;
 
 public class RobotArm implements ITickListener {
 
-	public static final float ROBOTBASE_WIDTH  = 10;
-	public static final float ROBOTBASE_HEIGHT = 20;
-	
 	private final WorldModel worldModel;
 	private final RobotModel model;
 	private float solveTimeSecs;
@@ -74,8 +71,6 @@ public class RobotArm implements ITickListener {
 		this.worldModel = worldModel;
 		KinematicsChain chain = new KinematicsChain();
 		
-		final float boneLength = 40f;
-
 		final Joint j1 = chain.addJoint( "Joint #0" , 0 );
 		j1.position.set(0,20 );
 		
@@ -87,13 +82,14 @@ public class RobotArm implements ITickListener {
 		j3.setRange( new MovementRange( 270 , 90 ) );
 		j4.setRange( new MovementRange( 270 , 90 ) );
 		
-		chain.addBone( "Bone #0", j1,j2 , boneLength );
-		chain.addBone( "Bone #1", j2, j3 , boneLength );
-		chain.addBone( "Bone #2", j3, j4 , boneLength/2 );
+		chain.addBone( "Bone #0", j1,j2 , Constants.BONE_BASE_LENGTH );
+		chain.addBone( "Bone #1", j2, j3 , Constants.BONE_BASE_LENGTH );
+		chain.addBone( "Bone #2", j3, j4 , Constants.BONE_BASE_LENGTH/2 );
 		
-		final float basePlateLength = 30f;
-		final float clawLength = 30f;
-		chain.addBone( new Gripper("Bone #3", j4, null , boneLength/2 , basePlateLength , clawLength ) );
+		chain.addBone( new Gripper("Bone #3", j4, null , 
+				Constants.GRIPPER_BONE_LENGTH , 
+				Constants.BASEPLASE_LENGTH , 
+				Constants.CLAW_LENGTH ) );
 
 		chain.applyForwardKinematics();
 		
