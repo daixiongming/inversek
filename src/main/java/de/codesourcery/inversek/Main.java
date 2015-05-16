@@ -75,14 +75,14 @@ public class Main
 				final Point p = panel.desiredPosition;
 				if ( p != null ) {
 					final Vector2 worldCoords = panel.viewToModel( p );
-					if ( robotArm.moveArm( worldCoords ) ) {
-						 System.err.println("Arm has not finished moving yet");
-						panel.desiredPositionChanged = false;
+					if ( robotArm.moveArm( worldCoords ) ) 
+					{
+						System.err.println("Arm moving to "+p+" (world: "+worldCoords+")");						
 					} else {
-						panel.desiredPosition = null;
-						System.err.println("Arm moving to "+p+" (world: "+worldCoords+")");
+						System.err.println("Arm has not finished moving yet");
 					}
 				}
+				panel.desiredPositionChanged = false;				
 			}
 			
 			listenerContainer.tick( deltaSeconds );

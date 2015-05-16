@@ -29,4 +29,10 @@ public class Constants {
 	public static final float ROBOTBASE_WIDTH  = FACTOR*0.1f; // 10 cm
 	public static final float ROBOTBASE_HEIGHT = FACTOR*0.2f; // 20 cm
 
+	// box2d config
+	public static final float PHYSICS_TIMESTEP = 1/60f;
+	public static final int VELOCITY_ITERATIONS = 6; // 6
+	public static final int POSITION_ITERATIONS = 2; // 2
+	public static final float DENSITY = 1f;
+
 }

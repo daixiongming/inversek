@@ -25,12 +25,6 @@ import com.badlogic.gdx.physics.box2d.joints.WeldJointDef;
 
 public class WorldModel implements ITickListener , IMathSupport
 {
-	private static final float PHYSICS_TIMESTEP = 1/30f;
-	private static final int VELOCITY_ITERATIONS = 6; // 6
-	private static final int POSITION_ITERATIONS = 2; // 2
-
-	private static final float DENSITY = 0.01f;
-
 	private final World world;
 	private float accumulator = 0;
 
@@ -117,10 +111,10 @@ public class WorldModel implements ITickListener , IMathSupport
 		// max frame time to avoid spiral of death (on slow devices)
 		float frameTime = Math.min(deltaSeconds, 0.25f);
 		accumulator += frameTime;
-		while (accumulator >= PHYSICS_TIMESTEP)
+		while (accumulator >= Constants.PHYSICS_TIMESTEP)
 		{
-			world.step(PHYSICS_TIMESTEP, VELOCITY_ITERATIONS , POSITION_ITERATIONS );
-			accumulator -= PHYSICS_TIMESTEP;
+			world.step(Constants.PHYSICS_TIMESTEP, Constants.VELOCITY_ITERATIONS , Constants.POSITION_ITERATIONS );
+			accumulator -= Constants.PHYSICS_TIMESTEP;
 		}
 		return true;
 	}
@@ -195,7 +189,7 @@ public class WorldModel implements ITickListener , IMathSupport
 
 			final Body left = joint.predecessor == null ? robotBase: joint.predecessor.getBody();
 			final Body right = joint.successor.getBody();
-			registerJoint(joint,left,right);
+			createJoint(joint,left,right);
 			center.add( 2*de.codesourcery.inversek.Constants.JOINT_RADIUS+joint.successor.length , 0 );
 		}
 
@@ -203,7 +197,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		chain.getRootJoint().successor.forwardKinematics();
 	}	
 
-	public void registerJoint(de.codesourcery.inversek.Joint joint,Body predecessor,Body successor) 
+	public void createJoint(de.codesourcery.inversek.Joint joint,Body predecessor,Body successor) 
 	{
 		final RevoluteJointDef def = new RevoluteJointDef();
 		def.collideConnected=false;
@@ -215,11 +209,25 @@ public class WorldModel implements ITickListener , IMathSupport
 		}
 		def.bodyB = successor;
 		def.localAnchorB.set( -joint.successor.length/2 - Constants.JOINT_RADIUS , 0 );
-		def.enableLimit = true;
-		float angleLimit = degToRad( convertAngle( joint.getOrientationDegrees() ) );
-		def.lowerAngle = angleLimit;
-		def.upperAngle = angleLimit;
+
+		float lowerAngleLimitInDeg;
+		float upperAngleLimitInDeg;
+		if ( joint.range.getMinimumAngle() == 0 && joint.range.getMaximumAngle() == 360 ) {
+			lowerAngleLimitInDeg = degToRad(0);
+			upperAngleLimitInDeg = degToRad(360);  			
+		} else {
+			lowerAngleLimitInDeg = degToRad(0);  
+			upperAngleLimitInDeg = degToRad(0);  
+		}
+		
+		def.enableLimit = true;		
+		def.lowerAngle = degToRad( -270 );
+		def.upperAngle = degToRad( 45 );
 		def.referenceAngle = 0;
+		
+		System.out.println("Created joint "+joint+" with limits "+
+				lowerAngleLimitInDeg+"° ("+def.lowerAngle+" rad) -> "+
+				upperAngleLimitInDeg+"° ("+def.upperAngle+" rad)");
 
 		final RevoluteJoint j = (RevoluteJoint) world.createJoint(def);
 		joint.setBody( j );
@@ -273,6 +281,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		final BoxBuilder basePlateBuilder = newDynamicBody( ItemType.BONE , basePlateCenter );
 		basePlateBuilder.boxShape( Constants.BASEPLATE_THICKNESS , gripper.getMaxBaseplateLength() );
 		basePlateBuilder.gravityScale(0);
+		
 		final Body basePlate = basePlateBuilder.collidesWith(ItemType.BALL).build();
 		
 		// create lower part of claw
@@ -459,7 +468,7 @@ public class WorldModel implements ITickListener , IMathSupport
 
 			FixtureDef fixtureDef = new FixtureDef();
 			fixtureDef.shape = this.shape;
-			fixtureDef.density = DENSITY;
+			fixtureDef.density = Constants.DENSITY;
 			fixtureDef.friction = this.friction;
 			fixtureDef.restitution = this.restitution; 
 			fixtureDef.filter.categoryBits = this.itemType.bitMask;

@@ -12,7 +12,7 @@ import com.badlogic.gdx.physics.box2d.Body;
 import de.codesourcery.inversek.ISolver.Outcome;
 import de.codesourcery.inversek.Joint.MovementRange;
 
-public class RobotArm implements ITickListener {
+public class RobotArm implements ITickListener , IMathSupport {
 
 	private final WorldModel worldModel;
 	private final RobotModel model;
@@ -72,7 +72,7 @@ public class RobotArm implements ITickListener {
 		KinematicsChain chain = new KinematicsChain();
 		
 		final Joint j1 = chain.addJoint( "Joint #0" , 0 );
-		j1.position.set(0,20 );
+		j1.position.set(0, Constants.ROBOTBASE_HEIGHT );
 		
 		final Joint j2 = chain.addJoint( "Joint #1" , 0 );
 		final Joint j3 = chain.addJoint( "Joint #2" , 0 );
@@ -103,6 +103,15 @@ public class RobotArm implements ITickListener {
 		model.addKinematicsChain( chain );
 		
 		worldModel.add( this );
+		
+		// DEBUG: Compare model with Box2D
+		for ( Bone b : model.getChains().get(0).getBones() ) {
+			System.out.println("ME positions: "+b.getCenter()+" vs. "+b.getBody().getPosition() );
+		}
+		
+		for ( Joint b : model.getChains().get(0).getJoints() ) {
+			System.out.println("ME angles: "+b.getOrientationDegrees()+" vs. "+radToDeg( b.getBody().getJointAngle() ) );
+		}
 	}
 	
 	public RobotModel getModel() {
@@ -111,7 +120,10 @@ public class RobotArm implements ITickListener {
 	
 	private ISolver createSolver(Vector2 desiredPoint) 
 	{
-		final KinematicsChain chain = this.model.getChains().get(0).createCopy();
+		final KinematicsChain input = this.model.getChains().get(0);
+		input.syncWithBox2d();
+		
+		final KinematicsChain chain = input.createCopy();
 		
 		final IConstraintValidator validator = new IConstraintValidator() 
 		{
@@ -186,7 +198,8 @@ public class RobotArm implements ITickListener {
 	
 	public boolean moveArm(Vector2 desiredPoint) 
 	{
-		if ( hasFinishedMoving() ) {
+		if ( hasFinishedMoving() ) 
+		{
 			currentSolver = createSolver(desiredPoint);			
 			solveTimeSecs=0;
 			return true;

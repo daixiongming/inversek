@@ -9,7 +9,7 @@ import java.util.Random;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class KinematicsChain implements Iterable<Node<?>>
+public class KinematicsChain implements Iterable<Node<?>>, IMathSupport
 {
 	private final List<Joint> joints = new ArrayList<>();
 	private final List<Bone> bones = new ArrayList<>();
@@ -216,5 +216,19 @@ public class KinematicsChain implements Iterable<Node<?>>
 	public void setRandomJointPositions(Random rnd) 
 	{
 		joints.forEach( joint -> joint.setRandomOrientation( rnd ) );
+	}
+	
+	public void syncWithBox2d() {
+		
+		for ( Joint j : getJoints() ) 
+		{
+			float modelDeg = j.getOrientationDegrees();
+			final float jointAngleInRad = j.getBody().getJointAngle();
+			final float jointAngleInDeg = radToDeg( j.getBody().getJointAngle() );
+			float actual = box2dAngleToDeg( jointAngleInRad );
+			System.out.println("Syncing joint "+j+", model: "+modelDeg+" -> actual: "+actual+" (rad: "+jointAngleInRad+" -> "+jointAngleInDeg+")");
+			j.setOrientation( actual );
+		}
+		getRootJoint().successor.forwardKinematics();
 	}
 }
