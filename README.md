@@ -27,3 +27,10 @@ This will create a self-executable JAR in target/inversek.jar
 # Running
 
 java -jar target/inversek.jar
+
+# Known glitches
+
+- when sizing the window so that the gripper can go off-screen, a ball held by the gripper will disappear (because I'm discarding all balls that go off-screen)
+- sometimes graphics glitches appear when hovering over parts of the robot arm , this is most likely caused by data races between the EDT and the box2d data model getting updated concurrently
+- validating the solution found by the inverse kinematic solver currently does not simulate the arm's motion and thus does not recognize when the arm passes through the ground
+- sometimes very small join angle adjustments cause the joint rotation to go past the desired target angle and force the joint to do a full rotation
