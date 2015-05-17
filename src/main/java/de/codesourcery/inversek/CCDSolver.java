@@ -8,13 +8,13 @@ public class CCDSolver implements ISolver
 {
 	private static final double EPSILON = 0.0001; 
 
-	private static final double DESIRED_ARRIVAL_DST = 1;
+	private static final double DESIRED_ARRIVAL_DST = 0.05f;
 
 	protected static final int RANDOM_RETRIES = 200;
 
 	protected static final int FAILURE_RETRY_COUNT = 100;
 
-	private static final int MAX_ITERATIONS = 100;
+	private static final int MAX_ITERATIONS = 200;
 
 	private static final double MIN_CHANGE  = 0.01;
 
@@ -23,6 +23,7 @@ public class CCDSolver implements ISolver
 	private final KinematicsChain chain;
 	private final Bone endBone;
 	private final Vector2 desiredPosition;
+	private final ICompletionCallback completionCallback;
 
 	// runtime state
 	private Outcome finalResult;
@@ -33,12 +34,13 @@ public class CCDSolver implements ISolver
 	
 	private final IConstraintValidator constraintValidator;
 
-	public CCDSolver(KinematicsChain chain,Vector2 desiredPosition,IConstraintValidator validator) 
+	public CCDSolver(KinematicsChain chain,Vector2 desiredPosition,IConstraintValidator validator,ICompletionCallback completionCallback) 
 	{
 		this.chain = chain;
 		this.endBone = chain.getEndBone();
 		this.desiredPosition = desiredPosition.cpy();
 		this.constraintValidator = validator;
+		this.completionCallback = completionCallback;
 	}
 
 	@Override
@@ -78,6 +80,7 @@ public class CCDSolver implements ISolver
 							
 							// restart from new random position
 							chain.setRandomJointPositions(rnd);
+							chain.applyForwardKinematics();
 							localIterations = MAX_ITERATIONS;
 							localFailureRetriesLeft = FAILURE_RETRY_COUNT;
 							outcome = Outcome.PROCESSING;
@@ -92,6 +95,7 @@ public class CCDSolver implements ISolver
 							}				
 							// restart from new random position
 							chain.setRandomJointPositions(rnd);
+							chain.applyForwardKinematics();
 							localIterations = MAX_ITERATIONS;
 							localFailureRetriesLeft = FAILURE_RETRY_COUNT;
 							outcome = Outcome.PROCESSING;
@@ -211,5 +215,10 @@ public class CCDSolver implements ISolver
 	@Override
 	public KinematicsChain getChain() {
 		return chain;
-	}	
+	}
+	
+	@Override
+	public ICompletionCallback getCompletionCallback() {
+		return completionCallback;
+	}
 }

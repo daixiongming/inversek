@@ -19,12 +19,12 @@ public class Bone extends Node<com.badlogic.gdx.physics.box2d.Body>
 		this.jointB = jointB;
 	}
 	
-	protected Bone(Bone other, Joint jointA, Joint jointB) 
+	protected Bone(Bone that, Joint jointA, Joint jointB) 
 	{
-		super(other.getBody() , other.getId(),NodeType.BONE);
-		this.start.set( other.start );
-		this.end.set( other.end );
-		this.length = other.length;
+		super(that.getBody() , that.getId(),NodeType.BONE);
+		this.start.set( that.start );
+		this.end.set( that.end );
+		this.length = that.length;
 		this.jointA = jointA;
 		this.jointB = jointB;		
 	}

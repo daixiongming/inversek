@@ -8,6 +8,9 @@ import javax.swing.JFrame;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Box2D;
 
+import de.codesourcery.inversek.ISolver.ICompletionCallback;
+import de.codesourcery.inversek.ISolver.Outcome;
+
 public class Main implements IMathSupport
 {
 	public static final boolean DEBUG = false;
@@ -79,7 +82,28 @@ public class Main implements IMathSupport
 				final Point p = panel.desiredPosition;
 				if ( p != null ) {
 					final Vector2 worldCoords = panel.viewToModel( p );
-					if ( robotArm.moveArm( worldCoords ) ) 
+					
+					final ICompletionCallback cb = new ICompletionCallback() 
+					{
+						private boolean called = false;
+						
+						@Override
+						public void complete(ISolver solver, Outcome outcome) 
+						{
+							if ( called ) {
+								throw new IllegalStateException("Called more than once?");
+							}
+							called = true;
+							if ( outcome == Outcome.SUCCESS ) {
+								panel.setDebugRender( solver.getChain() );
+							} else if ( outcome == Outcome.FAILURE ) {
+								panel.setDebugRender( null );
+							} else {
+								throw new IllegalStateException("Unexpected outcome: "+outcome);
+							}
+						}
+					};
+					if ( robotArm.moveArm( worldCoords , cb ) ) 
 					{
 						System.err.println("Arm moving to "+p+" (world: "+worldCoords+")");						
 					} else {

@@ -21,16 +21,16 @@ public class Joint extends Node<RevoluteJoint> implements IMathSupport
 	
 	public MovementRange range = new MovementRange(0,360);
 	
-	private Joint(Joint other,Bone predecessor,Bone successor) 
+	private Joint(Joint that,Bone predecessor,Bone successor) 
 	{
-		super(other.getBody() , other.getId(),NodeType.JOINT);
-		this.orientationDegrees = other.orientationDegrees;
-		this.orientation.set( other.orientation );
-		this.position.set( other.position );
-		this.radius = other.radius;
+		super(that.getBody() , that.getId(),NodeType.JOINT);
+		this.orientationDegrees = that.orientationDegrees;
+		this.orientation.set( that.orientation );
+		this.position.set( that.position );
+		this.radius = that.radius;
 		this.successor = successor;
 		this.predecessor = predecessor;
-		this.range = other.range;
+		this.range = that.range;
 	}
 	
 	public Joint createCopy() {

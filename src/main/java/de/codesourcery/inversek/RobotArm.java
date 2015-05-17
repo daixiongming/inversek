@@ -9,6 +9,7 @@ import java.util.Map;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 
+import de.codesourcery.inversek.ISolver.ICompletionCallback;
 import de.codesourcery.inversek.ISolver.Outcome;
 import de.codesourcery.inversek.Joint.MovementRange;
 
@@ -121,7 +122,7 @@ public class RobotArm implements ITickListener , IMathSupport {
 		return model;
 	}
 	
-	private ISolver createSolver(Vector2 desiredPoint) 
+	private ISolver createSolver(Vector2 desiredPoint,ISolver.ICompletionCallback callback) 
 	{
 		final KinematicsChain input = this.model.getChains().get(0);
 		input.syncWithBox2d();
@@ -197,14 +198,14 @@ public class RobotArm implements ITickListener , IMathSupport {
 			}
 		};
 		// return new AsyncSolverWrapper( new CCDSolver(chain, desiredPoint, validator ) );
-		return new CCDSolver(chain, desiredPoint, validator );
+		return new CCDSolver(chain, desiredPoint, validator , callback );
 	}
 	
-	public boolean moveArm(Vector2 desiredPoint) 
+	public boolean moveArm(Vector2 desiredPoint,ICompletionCallback callback) 
 	{
 		if ( hasFinishedMoving() ) 
 		{
-			currentSolver = createSolver(desiredPoint);			
+			currentSolver = createSolver(desiredPoint,callback);			
 			solveTimeSecs=0;
 			return true;
 		}
@@ -219,41 +220,51 @@ public class RobotArm implements ITickListener , IMathSupport {
 
 		final Outcome outcome = currentSolver.solve(100);
 		solveTimeSecs+=deltaSeconds;
+		if ( outcome == Outcome.PROCESSING ) {
+			return;
+		}
+		
+		final ISolver solver = currentSolver;
+		currentSolver = null;
+		
 		if ( outcome == Outcome.SUCCESS )
 		{
 			System.out.println("Found solution in "+solveTimeSecs*1000+" millis");
 			
-			currentSolver.getChain().visitJoints( joint -> 
-			{
+			solver.getChain().getJoints().forEach( joint -> 
+			{ 
 				System.out.println("Solution: "+joint.getId()+": "+joint.getBox2dOrientationDegrees()+" -> "+joint.getOrientationDegrees() );
-				if ( ! internalMoveJoint( joint , joint.getOrientationDegrees() ) ) {
-					System.err.println("Failed to move "+joint+" after finding solution");
-				}
-				return true;
 			});
-			currentSolver = null;
+			
+			solver.getChain().getJoints().forEach( joint -> 
+			{
+				float desiredAngle = joint.getOrientationDegrees();
+//				if ( desiredAngle > 180 ) {
+//					desiredAngle = -(desiredAngle-360);
+//				}
+				if ( ! moveJoint( joint , desiredAngle , false ) ) {
+					System.err.println("Failed to move "+joint+" to "+desiredAngle+"° after finding solution (in range: "+joint.range.isInRange( desiredAngle )+")");
+				}
+			});
 		} 
 		else if ( outcome == Outcome.FAILURE) {
 			System.err.println("Failed to solve motion constraints after "+solveTimeSecs*1000+" millis");
-			currentSolver = null;
 		}
+		
+		solver.getCompletionCallback().complete( solver , outcome );		
 	}
 	
 	public boolean moveJoint(Joint joint,float angleInDegrees) 
 	{
-		if ( hasFinishedMoving() ) 
-		{
-			return internalMoveJoint(joint,angleInDegrees);
-		}
-		return false;
+		return moveJoint(joint,angleInDegrees,true);
 	}
 	
-	private boolean internalMoveJoint(Joint joint,float angleInDegrees) 
+	private boolean moveJoint(Joint joint,float angleInDegrees,boolean checkAlreadyMoving) 
 	{
-		if ( joint.range.isInRange( angleInDegrees ) ) 
+		if ( ( ! checkAlreadyMoving || hasFinishedMoving() ) && joint.range.isInRange( angleInDegrees ) ) 
 		{
 			jointControllers.get( joint.getId() ).setDesiredAngle( angleInDegrees );
-			return true;
+			return true;			
 		}
 		return false;
 	}

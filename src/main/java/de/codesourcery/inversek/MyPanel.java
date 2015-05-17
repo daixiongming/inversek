@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
@@ -15,7 +14,6 @@ import java.util.List;
 
 import javax.swing.JPanel;
 
-import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.math.Matrix3;
 import com.badlogic.gdx.math.Vector2;
@@ -63,6 +61,8 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 
 	private int screenCenterX;
 	private int screenCenterY;
+	
+	private KinematicsChain debugChain;
 
 	public volatile Point addBallAt;
 
@@ -275,6 +275,9 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 			}
 			System.out.println("---");
 		} 
+
+		renderDebugChain();
+		
 		robotModel.getModel().getChains().forEach( chain -> chain.getBones().forEach( this::renderBone) );
 		robotModel.getModel().getChains().forEach( chain -> chain.getJoints().forEach( this::renderJoint ) );		
 
@@ -287,6 +290,39 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		renderDesiredPosition();
 
 		swapBuffers();
+	}
+	
+	private void renderDebugChain() 
+	{
+		KinematicsChain tmp = debugChain;
+		if ( tmp != null ) 
+		{
+			final Graphics2D graphics = getBackBufferGraphics();
+			graphics.setColor(Color.GREEN);
+			
+			final Vector2 p0 = new Vector2();
+			final Vector2 p1 = new Vector2();
+			for ( Bone b : tmp.getBones() ) 
+			{
+				p0.set( b.start );
+				p1.set( b.end );
+				modelToView( p0,p0 );
+				modelToView( p1,p1 );
+				renderLine( p0 , p1 );
+			}
+			
+			final Gripper endBone = (Gripper) tmp.getEndBone();
+			p0.set( endBone.getPositioningEnd() );
+			modelToView(p0,p0);
+			final float centerX = p0.x;
+			final float centerY = p0.y;
+			graphics.drawLine( (int) centerX -5 , (int)centerY , (int)centerX + 5 , (int)centerY );
+			graphics.drawLine( (int) centerX , (int)centerY-5 , (int)centerX , (int)centerY+5 );			
+		}
+	}
+
+	public void setDebugRender(KinematicsChain chain) {
+		this.debugChain = chain;
 	}
 
 	private void renderWorld() {

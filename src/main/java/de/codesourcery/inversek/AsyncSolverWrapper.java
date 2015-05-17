@@ -92,4 +92,9 @@ public final class AsyncSolverWrapper implements ISolver
 	public boolean hasFinished() {
 		return result != Outcome.PROCESSING;
 	}
+
+	@Override
+	public ICompletionCallback getCompletionCallback() {
+		return solver.getCompletionCallback();
+	}
 }

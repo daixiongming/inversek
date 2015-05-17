@@ -41,7 +41,13 @@ public class Gripper extends Bone
 		super(other, jointA, jointB);
 		this.basePlateLength = other.basePlateLength;
 		this.clawLength = other.clawLength;
+		this.positioningEnd.set( other.positioningEnd );
 		this.open = other.open;
+		this.basePlateBody = other.basePlateBody;
+		this.lowerClawBody = other.lowerClawBody;
+		this.upperClawBody = other.upperClawBody;
+		this.lowerJoint = other.lowerJoint;
+		this.upperJoint = other.upperJoint;
 	}
 
 	public Gripper(String name, Joint jointA, Joint jointB, float armLength, float basePlateLength,float clawLength) {

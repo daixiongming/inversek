@@ -26,7 +26,7 @@ public class Constants {
 	public static final float JOINT_RADIUS = 0;
 	public static final float JOINT_RENDER_RADIUS = 0.05f;
 	public static final float MAX_MOTOR_TORQUE = 10000;
-	public static final float MOTOR_SPEED = (float) (10 * Math.PI/180d); // deg -> rad
+	public static final float MOTOR_SPEED = (float) (20 * Math.PI/180d); // deg -> rad
 
 	// robot base
 	public static final float ROBOTBASE_WIDTH  = FACTOR*0.1f; // 10 cm
