@@ -1,6 +1,6 @@
 # inversek
 
-This program animates a little robot arm using cyclic coordinate descent. Many thanks to Ryan Juckett 
+This program animates a little robot arm using inverse kinematic, namelic the cyclic coordinate descent algorithm. Many thanks to Ryan Juckett 
 (http://www.ryanjuckett.com) who has some great explanations of IK algorithms on his website!
 
 The demo uses Box2D for physics, libgdx for maths and plain Java AWT for rendering.
