@@ -56,7 +56,6 @@ public class Main implements IMathSupport
 		frame.setVisible(true);
 
 		// main loop
-
 		long previous = System.currentTimeMillis();
 		float sumSeconds=0;
 		
@@ -67,6 +66,11 @@ public class Main implements IMathSupport
 			final float deltaSeconds = (now - previous)/1000f;
 			sumSeconds += deltaSeconds;
 			previous = now;
+			
+			if ( keyboardInput.isEmergencyStop() ) {
+				System.out.println("*** emergency stop ***");
+				robotArm.emergencyStop();
+			}
 
 			if ( panel.addBallAt != null ) 
 			{
@@ -77,12 +81,31 @@ public class Main implements IMathSupport
 				panel.addBallAt = null;
 			}
 			
+			if ( keyboardInput.isOpenGripper() ) 
+			{
+				if ( robotArm.setClaw( 1.0f ) ) {
+					System.err.println("Opening claw");
+				} else {
+					System.err.println("Failed to open claw");
+				}
+			} 
+			else if ( keyboardInput.isCloseGripper() ) 
+			{
+				if ( robotArm.setClaw( 0.0f ) ) 
+				{
+					System.err.println("Closing claw");
+				} else {
+					System.err.println("Failed to close claw");
+				}
+			}
+			
 			if ( panel.desiredPositionChanged ) 
 			{
 				final Point p = panel.desiredPosition;
-				if ( p != null ) {
+				if ( p != null ) 
+				{
 					final Vector2 worldCoords = panel.viewToModel( p );
-					
+										
 					final ICompletionCallback cb = new ICompletionCallback() 
 					{
 						private boolean called = false;
@@ -94,12 +117,16 @@ public class Main implements IMathSupport
 								throw new IllegalStateException("Called more than once?");
 							}
 							called = true;
-							if ( outcome == Outcome.SUCCESS ) {
-								panel.setDebugRender( solver.getChain() );
-							} else if ( outcome == Outcome.FAILURE ) {
-								panel.setDebugRender( null );
-							} else {
-								throw new IllegalStateException("Unexpected outcome: "+outcome);
+							switch (outcome) 
+							{
+								case SUCCESS:
+									panel.setDebugRender( solver.getChain() );
+									break;
+								case FAILURE:
+									panel.setDebugRender( null );
+									break;
+								default:
+									throw new IllegalStateException("Unexpected outcome: "+outcome);
 							}
 						}
 					};

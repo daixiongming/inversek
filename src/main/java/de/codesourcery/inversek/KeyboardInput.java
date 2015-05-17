@@ -17,19 +17,54 @@ public class KeyboardInput extends KeyAdapter {
 	@Override
 	public void keyPressed(KeyEvent e) 
 	{
-		pressed.add( e.getKeyCode() );
+		synchronized( pressed ) {
+			pressed.add( e.getKeyCode() );
+		}
 	}
 	
 	@Override
 	public void keyReleased(KeyEvent e) {
-		pressed.remove( e.getKeyCode() );
+		synchronized( pressed ) {
+			pressed.remove( e.getKeyCode() );
+		}
 	}
 	
-	public boolean isIncAnglePressed() {
-		return pressed.contains( KeyEvent.VK_PLUS);
+	public boolean isIncAnglePressed() 
+	{
+		synchronized( pressed ) {
+			return getAndClear( KeyEvent.VK_PLUS);
+		}
 	}
 	
-	public boolean isDecAnglePressed() {
-		return pressed.contains( KeyEvent.VK_MINUS );
+	public boolean isDecAnglePressed() 
+	{
+		synchronized( pressed ) {
+			return getAndClear( KeyEvent.VK_MINUS );
+		}
+	}	
+	
+	public boolean isOpenGripper() 
+	{
+		synchronized( pressed ) {
+			return getAndClear( KeyEvent.VK_O );
+		}
+	}
+	
+	public boolean isEmergencyStop() 
+	{
+		return getAndClear( KeyEvent.VK_SPACE );
+	}
+	
+	private boolean getAndClear(int keyCode) 
+	{
+		synchronized( pressed ) {
+			final boolean result = pressed.contains( keyCode );
+			pressed.remove( keyCode );
+			return result;
+		}
+	}
+	
+	public boolean isCloseGripper() {
+		return getAndClear( KeyEvent.VK_C );
 	}	
 }

@@ -21,6 +21,8 @@ public final class JointAnimator implements ITickListener, IMathSupport
 		float cwDelta;
 		
 		final float currentAngle = joint.getBox2dOrientationDegrees();
+		
+		// pick smallest angle 
 		if ( desiredAngleInDeg >= currentAngle ) {
 			ccwDelta = desiredAngleInDeg - currentAngle;
 			cwDelta = (360-desiredAngleInDeg) + currentAngle;
@@ -29,7 +31,7 @@ public final class JointAnimator implements ITickListener, IMathSupport
 			ccwDelta = (360-currentAngle) + desiredAngleInDeg;
 		}
 		
-		degPerSecond = Constants.MOTOR_SPEED;
+		degPerSecond = Constants.JOINT_MOTOR_SPEED_DEG;
 		if ( ccwDelta > cwDelta ) { // move clockwise
 			degPerSecond *= -1;
 		}
@@ -40,17 +42,17 @@ public final class JointAnimator implements ITickListener, IMathSupport
 	{
 		final RevoluteJoint rJoint = joint.getBody();
 		final float currentAngle = joint.getBox2dOrientationDegrees();
-		final float delta = Math.abs(currentAngle - desiredAngleInDeg);
+		final float deltaInDeg = Math.abs(currentAngle - desiredAngleInDeg);
 		
-		if ( delta < EPSILON )
+		if ( deltaInDeg < EPSILON )
 		{
 			rJoint.setMotorSpeed( 0 );
 			System.out.println("Joint "+joint+" finished moving (actual: "+currentAngle+", desired: "+desiredAngleInDeg+")");
 			return false;
 		}
 
-		final float speed = delta > Constants.MOTOR_SPEED ? degPerSecond : degPerSecond*0.3f;
-		rJoint.setMotorSpeed( speed );
+		final float speed = deltaInDeg > Constants.JOINT_MOTOR_SPEED_DEG ? degPerSecond : degPerSecond*0.3f;
+		rJoint.setMotorSpeed( degToRad( speed ) );
 		
 		if ( ! motorStarted ) 
 		{

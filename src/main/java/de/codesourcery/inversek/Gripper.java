@@ -10,19 +10,20 @@ public class Gripper extends Bone
 	private final float clawLength;
 	private final Vector2 positioningEnd = new Vector2();
 	
-	private float open=1.0f;
+	private float openPercentage=1.0f; // gripper starts out 100% open
 	
 	/* Gripper looks like this:
 	 * 
 	 *       BJ222222222
 	 *       B
-	 * XXXXXXB
+	 * XXXXXXW
 	 *       B
 	 *       BJ111111111
 	 *       
 	 * where 
 	 * 
 	 * X = bone the gripper is attached to
+	 * W = Weld joint
 	 * B = Gripper base plate
 	 * J = Prismatic joint
 	 * 1 = lower part of claw
@@ -42,7 +43,7 @@ public class Gripper extends Bone
 		this.basePlateLength = other.basePlateLength;
 		this.clawLength = other.clawLength;
 		this.positioningEnd.set( other.positioningEnd );
-		this.open = other.open;
+		this.openPercentage = other.openPercentage;
 		this.basePlateBody = other.basePlateBody;
 		this.lowerClawBody = other.lowerClawBody;
 		this.upperClawBody = other.upperClawBody;
@@ -76,7 +77,11 @@ public class Gripper extends Bone
 	}
 	
 	public float getCurrentBaseplateLength() {
-		return basePlateLength*open;
+		return basePlateLength*openPercentage;
+	}
+	
+	public float getMaxBox2dJointTranslation() {
+		return getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS;
 	}
 	
 	@Override
@@ -123,4 +128,38 @@ public class Gripper extends Bone
 	public void setUpperJoint(PrismaticJoint upperJoint) {
 		this.upperJoint = upperJoint;
 	}
+	
+	public float getOpenPercentage() {
+		return openPercentage;
+	}
+	
+	public void setOpenPercentage(float open) 
+	{
+		if ( open < 0f || open > 1.0f ) {
+			throw new IllegalArgumentException("Illegal open factor: "+open);
+		}		
+		this.openPercentage = open;
+	}
+	
+	public float getLowerClawOpenPercentage() {
+		final PrismaticJoint lowerJoint = getLowerJoint();
+
+		// translation = 0 => claw fully open
+		final float lowerOpenPercentage = 1.0f - lowerJoint.getJointTranslation() / getMaxBox2dJointTranslation();
+		return lowerOpenPercentage;
+	}
+	
+	public float getUpperClawOpenPercentage() 
+	{
+		final PrismaticJoint upperJoint = getUpperJoint();
+		// translation = 0 => claw fully open
+		final float upperOpenPercentage = 1.0f - upperJoint.getJointTranslation() / getMaxBox2dJointTranslation();
+		return upperOpenPercentage;
+	}
+	
+	public void updateOpenPercentage() 
+	{
+		final float avgOpenPercentage = (getLowerClawOpenPercentage()+getUpperClawOpenPercentage())/2f;
+		setOpenPercentage( Math.max( 0 , Math.min( avgOpenPercentage , 1.0f ) ) );
+	}	
 }

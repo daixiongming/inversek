@@ -2,7 +2,6 @@ package de.codesourcery.inversek;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +20,8 @@ public class RobotArm implements ITickListener , IMathSupport {
 	private ISolver currentSolver;
 	private final Map<String,JointController> jointControllers = new HashMap<>();
 	
+	private GripperAnimator gripperAnimator;
+	
 	private Body base;
 	
 	protected static final class JointController implements ITickListener 
@@ -35,6 +36,13 @@ public class RobotArm implements ITickListener , IMathSupport {
 		
 		public boolean isMoving() {
 			return ! tasks.isEmpty() || ! animators.isEmpty();
+		}
+		
+		public void emergencyStop() 
+		{
+			tasks.clear();
+			animators.removeAll();
+			joint.getBody().setMotorSpeed(0);
 		}
 		
 		public boolean isNotMoving() {
@@ -90,7 +98,7 @@ public class RobotArm implements ITickListener , IMathSupport {
 		chain.addBone( "Bone #1", j2, j3 , Constants.BONE_BASE_LENGTH );
 		chain.addBone( "Bone #2", j3, j4 , Constants.BONE_BASE_LENGTH/2 );
 		
-		chain.addBone( new Gripper("Bone #3", j4, null , 
+		chain.addBone( new Gripper("Gripper", j4, null , 
 				Constants.GRIPPER_BONE_LENGTH , 
 				Constants.BASEPLASE_LENGTH , 
 				Constants.CLAW_LENGTH ) );
@@ -131,8 +139,6 @@ public class RobotArm implements ITickListener , IMathSupport {
 		
 		final IConstraintValidator validator = new IConstraintValidator() 
 		{
-			private final float minY = worldModel.getFloorY();
-			
 			@Override
 			public boolean isInvalidConfiguration(KinematicsChain chainInFinalConfig) 
 			{
@@ -145,12 +151,12 @@ public class RobotArm implements ITickListener , IMathSupport {
 				final Bone endBone = chainInFinalConfig.getEndBone();
 				final Vector2 tmp = new Vector2( endBone.end ).sub( endBone.start ).nor();
 				final float angle = tmp.angle( new Vector2(0,-1) );
-				if ( Math.abs(angle) > 10 ) {
+				if ( Math.abs(angle) > 5 ) {
 					return true;
 				}
 				
-				// simulate motion to make sure no invalid configurations
-				// occur while moving
+				// TODO: simulate actual motion to make sure no invalid configurations occur while moving
+				
 //				final KinematicsChain configToTest = model.getChains().get(0).createCopy();
 //				
 //				final List<JointAnimator> animators = new ArrayList<>();
@@ -184,13 +190,13 @@ public class RobotArm implements ITickListener , IMathSupport {
 			{
 				for ( Bone b : chain.getBones() ) 
 				{
-					if ( b.start.y < minY || b.end.y < minY ) {
+					if ( b.start.y < 0 || b.end.y < 0 ) {
 						return true;
 					}
 				}
 				for ( Joint j : chain.getJoints() ) 
 				{
-					if ( j.position.y < minY ) {
+					if ( j.position.y < 0 ) {
 						return true;
 					}
 				}				
@@ -282,6 +288,12 @@ public class RobotArm implements ITickListener , IMathSupport {
 	public boolean tick(float deltaSeconds) 
 	{
 		solve(deltaSeconds);
+		if ( gripperAnimator != null ) 
+		{
+			if ( ! gripperAnimator.tick( deltaSeconds ) ) {
+				gripperAnimator = null;
+			}
+		}
 		jointControllers.values().forEach( act -> act.tick( deltaSeconds ) );
 		model.getChains().forEach( chain -> chain.syncWithBox2d() );
 		return true;
@@ -293,5 +305,29 @@ public class RobotArm implements ITickListener , IMathSupport {
 	
 	public Body getBase() {
 		return base;
+	}
+	
+	public boolean setClaw(float open) {
+		if ( open < 0 || open > 1.0f ) {
+			throw new IllegalArgumentException("Percentage value must be in range 0...1");
+		}
+		if ( gripperAnimator != null && ! gripperAnimator.hasFinished() ) {
+			return false;
+		}
+		
+		final Gripper gripper = (Gripper) model.getChains().get(0).getEndBone();
+		gripperAnimator = new GripperAnimator( worldModel, gripper , open ); 
+		return true;
+	}
+	
+	public void emergencyStop() 
+	{
+		System.out.println("*** Emergency stop ***");
+		
+		if ( gripperAnimator != null ) {
+			gripperAnimator.emergencyStop();
+			gripperAnimator = null;
+		}
+		jointControllers.values().forEach( controller -> controller.emergencyStop() );
 	}
 }

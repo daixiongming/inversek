@@ -1,7 +1,5 @@
 package de.codesourcery.inversek;
 
-
-
 public abstract class Node<T> 
 {
 	public static enum NodeType 

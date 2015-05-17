@@ -13,7 +13,12 @@ import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.BodyDef.BodyType;
 import com.badlogic.gdx.physics.box2d.CircleShape;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.ContactImpulse;
+import com.badlogic.gdx.physics.box2d.ContactListener;
+import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.Shape;
 import com.badlogic.gdx.physics.box2d.World;
@@ -28,9 +33,9 @@ public class WorldModel implements ITickListener , IMathSupport
 	private final World world;
 	private float accumulator = 0;
 
-	private final float floorY = 0;
-
 	private final List<Ball> balls = new ArrayList<>(); 
+	
+	private final List<IContactCallback> contactCallbacks = new ArrayList<>();
 
 	protected static enum ItemType
 	{
@@ -46,41 +51,103 @@ public class WorldModel implements ITickListener , IMathSupport
 		}
 	}
 
-	protected static final class Ball 
+	public static final class Ball 
 	{
-		private final Body body;
+		private Body body;
 		public final float radius;
 
-		public Ball(Body body,float radius) {
+		public Ball(float radius) {
 			this.radius = radius;
+		}
+		
+		public Body getBody() {
+			return body;
+		}
+		
+		public void setBody(Body body) {
 			this.body = body;
 		}
 
 		public Vector2 getPosition() {
 			return body.getPosition();
 		}
+		
+		@Override
+		public String toString() {
+			return "Ball";
+		}
 	}
 
-	public WorldModel() {
+	public WorldModel() 
+	{
 		world  = new World( new Vector2(0,-9.81f) , true );
+		world.setContactListener( new ContactListener() 
+		{
+			
+			@Override
+			public void preSolve(Contact contact, Manifold oldManifold) {
+			}
+			
+			@Override
+			public void postSolve(Contact contact, ContactImpulse impulse) {
+			}
+			
+			@Override
+			public void endContact(Contact contact) 
+			{
+				for (Iterator<IContactCallback> it = contactCallbacks.iterator(); it.hasNext();) 
+				{
+					final IContactCallback cb = it.next();
+					if ( ! cb.endContact( contact ) ) {
+						it.remove();
+					}
+				}
+			}
+			
+			@Override
+			public void beginContact(Contact contact) 
+			{
+				for (Iterator<IContactCallback> it = contactCallbacks.iterator(); it.hasNext();) 
+				{
+					final IContactCallback cb = it.next();
+					if ( ! cb.beginContact( contact ) ) {
+						it.remove();
+					}
+				}				
+			}
+		});
+		
 		setupFloorPlane();
+	}
+	
+	public void addContactCallback(IContactCallback cb) {
+		if (cb == null) {
+			throw new IllegalArgumentException("callback must not be NULL");
+		}
+		System.out.println("ADD CONTACT CB: "+cb);
+		contactCallbacks.add( cb );
+	}
+	
+	public void removeContractCallback(IContactCallback cb) 
+	{
+		if (cb == null) {
+			throw new IllegalArgumentException("callback must not be NULL");
+		}
+		System.out.println("REMOVE CONTACT CB: "+cb);
+		contactCallbacks.remove( cb );
 	}
 
 	public List<Ball> getBalls() {
 		return balls;
 	}
 
-	public float getFloorY() {
-		return floorY;
-	}
-
 	private void setupFloorPlane() 
 	{
-		final Vector2 position = new Vector2(0, floorY-Constants.FLOOR_THICKNESS/2f);
+		final Vector2 position = new Vector2(0, -Constants.FLOOR_THICKNESS/2f);
 		newStaticBody( ItemType.GROUND , position )
 		.boxShape(100 , Constants.FLOOR_THICKNESS)
 		.collidesWith(ItemType.BALL)
-		.build();
+		.build(null);
 	}
 
 	public void addBall(float x,float y) 
@@ -88,13 +155,15 @@ public class WorldModel implements ITickListener , IMathSupport
 		System.out.println("Adding ball @ "+x+","+y);
 
 		// Create our body in the world using our body definition
+		Ball ball = new Ball(Constants.BALL_RADIUS );
 		final Body body = newDynamicBody(ItemType.BALL,new Vector2(x,y))
 				.circleShape( Constants.BALL_RADIUS )
-				.collidesWith( ItemType.GROUND  , ItemType.BONE , ItemType.BALL )
+				.collidesWith( ItemType.GROUND  , ItemType.BONE , ItemType.BALL , ItemType.ROBOT_BASE )
 				.restitution( 0.3f )
-				.build();
-
-		balls.add( new Ball( body , Constants.BALL_RADIUS ) );
+				.friction(1)
+				.build(ball);
+		ball.setBody( body );
+		balls.add( ball );
 	}
 	
 	public void destroyBall(Ball ball) 
@@ -242,7 +311,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		return newStaticBody( ItemType.ROBOT_BASE, center )
 				.boxShape( Constants.ROBOTBASE_WIDTH , Constants.ROBOTBASE_HEIGHT ) 
 				.collidesWith(ItemType.BALL)
-				.build();
+				.build(null);
 	}
 
 	private Body createHorizontalBone(Vector2 center,Bone bone) 
@@ -251,7 +320,7 @@ public class WorldModel implements ITickListener , IMathSupport
 				.boxShape( bone.length, Constants.BONE_THICKNESS ) 
 				.collidesWith( ItemType.BALL )
 				.gravityScale(0)
-				.build();
+				.build(bone);
 		bone.setBody( body );
 		return body;
 	}	
@@ -285,7 +354,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		basePlateBuilder.boxShape( Constants.BASEPLATE_THICKNESS , gripper.getMaxBaseplateLength() );
 		basePlateBuilder.gravityScale(0);
 		
-		final Body basePlate = basePlateBuilder.collidesWith(ItemType.BALL).build();
+		final Body basePlate = basePlateBuilder.collidesWith(ItemType.BALL).build(gripper);
 		
 		// create lower part of claw
 		final Vector2 lowerClawCenter = new Vector2( basePlateCenter.x + Constants.BASEPLATE_THICKNESS/2f + gripper.getClawLength()/2f,
@@ -294,8 +363,9 @@ public class WorldModel implements ITickListener , IMathSupport
 		final BoxBuilder lowerClawBuilder = newDynamicBody( ItemType.BONE , lowerClawCenter )
 				.boxShape( gripper.getClawLength() , Constants.CLAW_THICKNESS )
 				.gravityScale( 0 )
+				.friction(1)
 				.collidesWith( ItemType.BALL );
-		final Body lowerClaw = lowerClawBuilder.build();
+		final Body lowerClaw = lowerClawBuilder.build(gripper);
 				
 		// create upper part of claw
 		final Vector2 upperClawCenter = new Vector2( basePlateCenter.x + Constants.BASEPLATE_THICKNESS/2f + gripper.getClawLength()/2f,
@@ -303,8 +373,9 @@ public class WorldModel implements ITickListener , IMathSupport
 		final BoxBuilder upperClawBuilder = newDynamicBody( ItemType.BONE , upperClawCenter )
 				.boxShape( gripper.getClawLength() , Constants.CLAW_THICKNESS )
 				.gravityScale( 0 )
+				.friction(1)
 				.collidesWith( ItemType.BALL );
-		final Body upperClaw = upperClawBuilder.build();		
+		final Body upperClaw = upperClawBuilder.build(gripper);		
 		
 		// create distance joint connecting the base plate with the gripper bone
 		final WeldJointDef distJointDef = new WeldJointDef();
@@ -320,7 +391,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		final PrismaticJointDef lowerJointDef = new PrismaticJointDef();
 		lowerJointDef.collideConnected=false;
 		lowerJointDef.bodyA = basePlate;
-		lowerJointDef.localAnchorA.set( Constants.BASEPLATE_THICKNESS/2 , -gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS/2f );
+		lowerJointDef.localAnchorA.set( Constants.BASEPLATE_THICKNESS/2 , -gripper.getMaxBaseplateLength()/2f + Constants.CLAW_THICKNESS/2f );
 		lowerJointDef.bodyB = lowerClaw; 
 		lowerJointDef.localAnchorB.set( -gripper.getClawLength()/2f , 0 ); 
 		lowerJointDef.referenceAngle = 0;
@@ -330,7 +401,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		lowerJointDef.localAxisA.set(0,1); 
 		lowerJointDef.enableLimit = true;
 		lowerJointDef.lowerTranslation=0;
-		lowerJointDef.upperTranslation=gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS;
+		lowerJointDef.upperTranslation=gripper.getMaxBox2dJointTranslation();
 		
 		final PrismaticJoint lowerClawJoint = (PrismaticJoint) world.createJoint(lowerJointDef);
 		
@@ -338,7 +409,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		lowerClawJoint.setMaxMotorForce( 10000 );
 		lowerClawJoint.setMotorSpeed(0);
 		
-		// create prismatic joint connecting base plate and lower part of claw
+		// create prismatic joint connecting base plate and upper part of claw
 		final PrismaticJointDef upperJointDef = new PrismaticJointDef();
 		upperJointDef.collideConnected=false;
 		upperJointDef.bodyA = basePlate;
@@ -346,19 +417,21 @@ public class WorldModel implements ITickListener , IMathSupport
 		upperJointDef.bodyB = upperClaw; 
 		upperJointDef.localAnchorB.set( -gripper.getClawLength()/2f , 0  ); 
 		upperJointDef.referenceAngle = 0;
-		upperJointDef.localAxisA.set(0,1);
+		upperJointDef.localAxisA.set(0,-1);
 		lowerJointDef.maxMotorForce=10000;
 		lowerJointDef.motorSpeed=0;
 		lowerJointDef.enableMotor=true;		
 		upperJointDef.enableLimit = true;
 		upperJointDef.lowerTranslation=0; 
-		upperJointDef.upperTranslation= gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS;
+		upperJointDef.upperTranslation= gripper.getMaxBox2dJointTranslation();
 		
 		final PrismaticJoint upperClawJoint = (PrismaticJoint) world.createJoint(upperJointDef);
 		
 		upperClawJoint.enableMotor(true);
 		upperClawJoint.setMaxMotorForce( 10000 );
 		upperClawJoint.setMotorSpeed(0);
+		
+		gripper.setOpenPercentage( 1.0f ); // 100% open
 		
 		gripper.setBasePlateBody( basePlate );
 		gripper.setLowerClawBody( lowerClaw );
@@ -405,7 +478,6 @@ public class WorldModel implements ITickListener , IMathSupport
 		private float restitution=0;
 		private float friction;
 		private float gravityScale=1f;
-		
 
 		public BoxBuilder(ItemType type,Vector2 center, BodyType bodyType) 
 		{
@@ -469,7 +541,7 @@ public class WorldModel implements ITickListener , IMathSupport
 			return this;
 		}
 
-		public Body build() 
+		public Body build(Object fixtureUserData) 
 		{
 			assertNotBuilt();
 
@@ -494,7 +566,9 @@ public class WorldModel implements ITickListener , IMathSupport
 			fixtureDef.filter.categoryBits = this.itemType.bitMask;
 			fixtureDef.filter.maskBits = (short) collidesWith.stream().mapToInt( m -> m.bitMask ).sum();
 
-			body.createFixture(fixtureDef);
+			final Fixture fixture = body.createFixture(fixtureDef);
+			fixture.setUserData( fixtureUserData );
+			
 			this.shape.dispose();
 			this.shape = null;
 			return body;			

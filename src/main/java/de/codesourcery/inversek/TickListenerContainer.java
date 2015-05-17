@@ -14,30 +14,27 @@ public class TickListenerContainer implements ITickListener
 		if (l == null) {
 			throw new IllegalArgumentException("l must not be NULL");
 		}
-		synchronized (listeners) {
-			listeners.add( l );
-		}
+		listeners.add( l );
+	}
+	
+	public void removeAll() 
+	{
+		listeners.clear();
 	}
 	
 	public boolean isEmpty() 
 	{
-		synchronized (listeners) {
-			return listeners.isEmpty();
-		}
+		return listeners.isEmpty();
 	}
 	
-	public void remove(ITickListener l ) {
-		synchronized(listeners) {
-			listeners.remove( l );
-		}
+	public void remove(ITickListener l ) 
+	{
+		listeners.remove( l );
 	}
 	
 	public boolean tick(float deltaSeconds) {
 		
-		final List<ITickListener> copy;
-		synchronized(listeners) {
-			copy = new ArrayList<>(listeners);
-		}
+		final List<ITickListener> copy = new ArrayList<>(listeners);
 
 		for ( ITickListener l : copy ) 
 		{
@@ -46,13 +43,10 @@ public class TickListenerContainer implements ITickListener
 			}
 		}
 		
-		synchronized(listeners) 
+		if ( ! toRemove.isEmpty() ) 
 		{
-			if ( ! toRemove.isEmpty() ) 
-			{
-				this.listeners.removeAll(toRemove);
-				toRemove.clear();
-			}
+			this.listeners.removeAll(toRemove);
+			toRemove.clear();
 		}
 		return true;
 	}

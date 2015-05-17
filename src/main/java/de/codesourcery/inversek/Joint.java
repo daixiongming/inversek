@@ -227,8 +227,9 @@ public class Joint extends Node<RevoluteJoint> implements IMathSupport
 		this.successor = bone;
 	}	
 	
-	public void syncWithBox2d() {
-		setOrientation( getBox2dOrientationDegrees() );
+	public void syncWithBox2d() 
+	{		
+		setOrientation( range.clamp( getBox2dOrientationDegrees() ) );
 	}
 	
 	public void setOrientation(float degrees) 

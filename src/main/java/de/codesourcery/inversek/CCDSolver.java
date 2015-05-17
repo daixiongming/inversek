@@ -8,7 +8,7 @@ public class CCDSolver implements ISolver
 {
 	private static final double EPSILON = 0.0001; 
 
-	private static final double DESIRED_ARRIVAL_DST = 0.05f;
+	private static final double DESIRED_ARRIVAL_DST = 0.02f;
 
 	protected static final int RANDOM_RETRIES = 200;
 

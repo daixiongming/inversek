@@ -59,9 +59,6 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	private final Graphics2D[] graphics = new Graphics2D[2];
 	private int bufferIdx = 0;
 
-	private int screenCenterX;
-	private int screenCenterY;
-	
 	private KinematicsChain debugChain;
 
 	public volatile Point addBallAt;
@@ -156,6 +153,26 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		{
 			start.set( p0 ).add( p3 ).scl(0.5f);
 			end.set( p1 ).add( p2 ).scl(0.5f);
+		}
+		
+		public Vector2 getMin(Vector2 vec) {
+			vec.x = Math.min( Math.min( Math.min( p0.x , p1.x ) , p2.x ) , p3.x );
+			vec.y = Math.min( Math.min( Math.min( p0.y , p1.y ) , p2.y ) , p3.y );
+			return vec;
+		}
+		
+		public Vector2 getMax(Vector2 vec) {
+			vec.x = Math.max( Math.max( Math.max( p0.x , p1.x ) , p2.x ) , p3.x );
+			vec.y = Math.max( Math.max( Math.max( p0.y , p1.y ) , p2.y ) , p3.y );
+			return vec;
+		}
+		
+		public Vector2 getCenter(Vector2 vec) 
+		{
+			final Vector2 c0 = p0.cpy().add( p1 ).scl(0.5f);
+			final Vector2 c1 = p2.cpy().add( p3 ).scl(0.5f);
+			vec.set( c0.add( c1 ).scl(0.5f) );
+			return vec;
 		}
 
 		public void set(Vector2 centerInWorldCoords,float xExtent,float yExtent,Vector2 rotationCenter,float angleInDegrees) 
@@ -254,10 +271,9 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	}
 
 	private int debugBones = 10;
-	public void render(float deltaSeconds) 
+	
+	public synchronized void render(float deltaSeconds) 
 	{
-		screenCenterX = getWidth()/2;
-		screenCenterY = getHeight() / 2;
 		clearBackBuffer();
 
 		// render world
@@ -328,8 +344,8 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	private void renderWorld() {
 
 		// render floor
-		final Vector2 p = new Vector2();
-		modelToView( new Vector2(0,worldModel.getFloorY()) , p);
+		final Vector2 p = new Vector2(0,0);
+		modelToView( p , p);
 
 		final Graphics2D graphics = getBackBufferGraphics();
 		graphics.setColor(Color.BLACK);
@@ -472,21 +488,6 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		graphics.drawString( "Mouse @ "+tmp+" (model: "+modelCoords+" / converted: "+viewCoords+")", 5 , 35 );
 	}	
 
-	private boolean renderNode(Node<?> n) 
-	{
-		switch( n.getType() ) {
-			case BONE:
-				renderBone( (Bone) n);
-				break;
-			case JOINT:
-				renderJoint( (Joint) n);
-				break;
-			default:
-				throw new RuntimeException("Internal error,unhandled switch/case: "+n.getType());
-		}
-		return true;
-	}
-
 	private void renderJoint(Joint joint) 
 	{
 		getBackBufferGraphics().setColor( getNodeColor(joint,JOINT_COLOR) );		
@@ -534,24 +535,18 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 
 		if ( isOnScreen ) 
 		{
-			// transform radius
-			screenPos.x = modelRadius;
-			screenPos.y = modelRadius;
-			modelToView( screenPos , screenPos );
+			tmpBox.set( modelCenterCoords , 2*modelRadius , 2*modelRadius , Vector2.Zero, 0 );
+			modelToView( tmpBox );
 
-			final float dx = screenPos.x - (float) screenCenterX;
-			final float dy = screenCenterY - screenPos.y;
-
-			final float radWidth = dx*2f;
-			final float radHeight = dy*2f;
+			final Vector2 min = tmpBox.getMin( new Vector2() );
+			final Vector2 max = tmpBox.getMax( new Vector2() );
 
 			final Graphics2D graphics = getBackBufferGraphics();
-
-			graphics.fillArc( (int) ( centerX - radWidth/2f) ,(int) (centerY-radHeight/2f) , (int) radWidth , (int) radHeight, 0 , 360 );
+			graphics.fillArc( (int) min.x , (int) min.y , (int) (max.x-min.x) , (int) (max.y - min.y) , 0 , 360 );
 			graphics.setColor(Color.BLACK);
-
-			graphics.drawLine( (int) centerX -5 , (int)centerY , (int)centerX + 5 , (int)centerY );
-			graphics.drawLine( (int) centerX , (int)centerY-5 , (int)centerX , (int)centerY+5 );
+			
+			graphics.drawLine( (int) centerX -5 , (int) centerY , (int) centerX + 5 , (int)centerY );
+			graphics.drawLine( (int) centerX , (int)  centerY-5 , (int) centerX , (int)centerY+5 );
 		}
 		return isOnScreen;
 	}
@@ -662,8 +657,6 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		Vector3 result = new Vector3( modelVector , 0 );
 		camera.project( result  , 0 , 0 , getWidth() , getHeight() );
 
-		// libgdx assumes the origin of view coordinates in the LOWER left corner
-		// of the screen, need to fix Y coordinate here
 		viewVector.x = result.x;
 		viewVector.y = result.y+1;
 	}	
@@ -715,7 +708,9 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 	{
 		synchronized( INIT_LOCK ) 
 		{
-			if ( ! initialized || buffers[0].getWidth() != getWidth() || buffers[0].getHeight() != getHeight() ) 
+			final int panelWidth = getWidth();
+			final int panelHeight = getHeight();
+			if ( ! initialized || buffers[0].getWidth() != panelWidth || buffers[0].getHeight() != panelHeight ) 
 			{
 				if ( graphics[0] != null) 
 				{
@@ -724,8 +719,8 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 				if ( graphics[1] != null) { 
 					graphics[1].dispose();
 				}
-				buffers[0] = new BufferedImage( getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
-				buffers[1] = new BufferedImage( getWidth() , getHeight() , BufferedImage.TYPE_INT_RGB);
+				buffers[0] = new BufferedImage( panelWidth , panelHeight , BufferedImage.TYPE_INT_RGB);
+				buffers[1] = new BufferedImage( panelWidth , panelHeight , BufferedImage.TYPE_INT_RGB);
 				graphics[0] = buffers[0].createGraphics();
 				graphics[1] = buffers[1].createGraphics();
 
@@ -734,7 +729,7 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 				graphics[1].getRenderingHints().put( RenderingHints.KEY_ANTIALIASING , RenderingHints.VALUE_ANTIALIAS_ON );
 				graphics[1].getRenderingHints().put( RenderingHints.KEY_RENDERING , RenderingHints.VALUE_RENDER_QUALITY);
 
-				updateCamera(camera,getWidth(),getHeight());
+				updateCamera(camera,panelWidth,panelHeight);
 
 				initialized = true;
 				render(1);
@@ -747,7 +742,7 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 		camera.setToOrtho( true , viewportWidth , viewportHeight);
 
 		camera.direction.set( 0 , 0, 1 );
-		camera.position.set(0,0,-5f);
+		camera.position.set(0,0.9f,-5f);
 		camera.near = 0;		
 		camera.far = 100;
 		camera.zoom = 0.005f;
