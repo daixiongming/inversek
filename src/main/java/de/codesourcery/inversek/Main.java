@@ -54,6 +54,8 @@ public class Main
 
 		long previous = System.currentTimeMillis();
 		float sumSeconds=0;
+		
+		System.out.println("Chains: "+robotArm.getModel().getChains().size());
 		while ( true ) 
 		{
 			final long now = System.currentTimeMillis();
@@ -86,6 +88,8 @@ public class Main
 			}
 			
 			listenerContainer.tick( deltaSeconds );
+			
+			robotArm.getModel().getChains().forEach( chain -> chain.syncWithBox2d() );
 			
 			if ( sumSeconds >= 1.0f/DESIRED_FPS ) 
 			{

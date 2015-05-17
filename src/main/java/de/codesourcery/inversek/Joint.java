@@ -178,8 +178,8 @@ public class Joint extends Node<RevoluteJoint> implements IMathSupport
 	public Joint(String name,float radius,float orientation) 
 	{
 		super(null,name,NodeType.JOINT);
-		if ( radius <= 0 ) {
-			throw new IllegalArgumentException("radius needs to be > 0,was: "+radius);
+		if ( radius < 0 ) {
+			throw new IllegalArgumentException("radius needs to be >= 0,was: "+radius);
 		}
 		this.radius = radius;
 		this.range = new MovementRange(0,360);
@@ -269,6 +269,15 @@ public class Joint extends Node<RevoluteJoint> implements IMathSupport
 	{
 		return predecessor == null ? orientationDegrees : orientationDegrees + predecessor.jointA.getSumOrientationDegrees();  
 	}
+	
+	public float getBox2dOrientationDegrees() {
+		return radToDeg( getBody().getJointAngle() );
+	}
+	
+	public float getSumOrientationDegreesBox2d() 
+	{
+		return predecessor == null ? getBox2dOrientationDegrees() : getBox2dOrientationDegrees() + predecessor.jointA.getSumOrientationDegreesBox2d();  
+	}	
 	
 	public Vector2 getOrientation() {
 		return orientation;

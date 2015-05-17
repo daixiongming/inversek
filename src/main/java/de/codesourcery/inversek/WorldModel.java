@@ -170,10 +170,11 @@ public class WorldModel implements ITickListener , IMathSupport
 		float x1 =  de.codesourcery.inversek.Constants.JOINT_RADIUS;
 		for ( Bone b : sortedBones ) 
 		{
+			final Vector2 boneCenter = new Vector2( x1 + b.length/2 ,y);
 			if ( b instanceof Gripper ) {
-				createHorizontalGripper( new Vector2( x1 + b.length/2 ,y) , (Gripper) b );
+				createHorizontalGripper( boneCenter , (Gripper) b );
 			} else {
-				createHorizontalBone( new Vector2( x1 + b.length/2 ,y) , b );
+				createHorizontalBone( boneCenter , b );
 			}
 			x1 += b.length + 2 * de.codesourcery.inversek.Constants.JOINT_RADIUS;
 		}
@@ -184,7 +185,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		{
 			final de.codesourcery.inversek.Joint joint = b.jointA;
 			joint.setOrientation(0);
-			joint.position.set( center.cpy() );
+			joint.position.set( center );
 			System.out.println("Joint @ "+center);
 
 			final Body left = joint.predecessor == null ? robotBase: joint.predecessor.getBody();
@@ -194,7 +195,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		}
 
 		// update positions
-		chain.getRootJoint().successor.forwardKinematics();
+		chain.applyForwardKinematics( true );
 	}	
 
 	public void createJoint(de.codesourcery.inversek.Joint joint,Body predecessor,Body successor) 
@@ -216,13 +217,16 @@ public class WorldModel implements ITickListener , IMathSupport
 			lowerAngleLimitInDeg = degToRad(0);
 			upperAngleLimitInDeg = degToRad(360);  			
 		} else {
-			lowerAngleLimitInDeg = degToRad(0);  
-			upperAngleLimitInDeg = degToRad(0);  
+			lowerAngleLimitInDeg = degToRad(-270);  
+			upperAngleLimitInDeg = degToRad(90);  
 		}
 		
-		def.enableLimit = true;		
-		def.lowerAngle = degToRad( -270 );
-		def.upperAngle = degToRad( 45 );
+		def.motorSpeed=0;
+		def.enableMotor = true;
+		def.maxMotorTorque = Constants.MAX_MOTOR_TORQUE;
+		def.enableLimit = false;		
+//		def.lowerAngle = degToRad( lowerAngleLimitInDeg );
+//		def.upperAngle = degToRad( upperAngleLimitInDeg);
 		def.referenceAngle = 0;
 		
 		System.out.println("Created joint "+joint+" with limits "+
@@ -236,7 +240,7 @@ public class WorldModel implements ITickListener , IMathSupport
 	private Body createRobotBase() 
 	{
 		final Vector2 center = new Vector2(0,Constants.ROBOTBASE_HEIGHT/2);
-		return newStaticBody( ItemType.BONE, center )
+		return newStaticBody( ItemType.ROBOT_BASE, center )
 				.boxShape( Constants.ROBOTBASE_WIDTH , Constants.ROBOTBASE_HEIGHT ) 
 				.collidesWith(ItemType.BALL)
 				.build();
@@ -321,13 +325,19 @@ public class WorldModel implements ITickListener , IMathSupport
 		lowerJointDef.bodyB = lowerClaw; 
 		lowerJointDef.localAnchorB.set( -gripper.getClawLength()/2f , 0 ); 
 		lowerJointDef.referenceAngle = 0;
-		lowerJointDef.enableMotor=false;
+		lowerJointDef.maxMotorForce=10000;
+		lowerJointDef.motorSpeed=0;
+		lowerJointDef.enableMotor=true;
 		lowerJointDef.localAxisA.set(0,1); 
 		lowerJointDef.enableLimit = true;
 		lowerJointDef.lowerTranslation=0;
 		lowerJointDef.upperTranslation=gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS;
 		
 		final PrismaticJoint lowerClawJoint = (PrismaticJoint) world.createJoint(lowerJointDef);
+		
+		lowerClawJoint.enableMotor(true);
+		lowerClawJoint.setMaxMotorForce( 10000 );
+		lowerClawJoint.setMotorSpeed(0);
 		
 		// create prismatic joint connecting base plate and lower part of claw
 		final PrismaticJointDef upperJointDef = new PrismaticJointDef();
@@ -337,13 +347,19 @@ public class WorldModel implements ITickListener , IMathSupport
 		upperJointDef.bodyB = upperClaw; 
 		upperJointDef.localAnchorB.set( -gripper.getClawLength()/2f , 0  ); 
 		upperJointDef.referenceAngle = 0;
-		upperJointDef.enableMotor=false;
-		upperJointDef.localAxisA.set(0,1); 
+		upperJointDef.localAxisA.set(0,1);
+		lowerJointDef.maxMotorForce=10000;
+		lowerJointDef.motorSpeed=0;
+		lowerJointDef.enableMotor=true;		
 		upperJointDef.enableLimit = true;
 		upperJointDef.lowerTranslation=0; 
 		upperJointDef.upperTranslation= gripper.getMaxBaseplateLength()/2f - Constants.CLAW_THICKNESS;
 		
 		final PrismaticJoint upperClawJoint = (PrismaticJoint) world.createJoint(upperJointDef);
+		
+		upperClawJoint.enableMotor(true);
+		upperClawJoint.setMaxMotorForce( 10000 );
+		upperClawJoint.setMotorSpeed(0);
 		
 		gripper.setBasePlateBody( basePlate );
 		gripper.setLowerClawBody( lowerClaw );
@@ -361,17 +377,22 @@ public class WorldModel implements ITickListener , IMathSupport
 
 	private BoxBuilder newDynamicBody(ItemType type,Vector2 center) 
 	{
-		return newBody(type,center,false);
+		return newBody(type,center,BodyType.DynamicBody);
 	}
+	
+	private BoxBuilder newKinematicBody(ItemType type,Vector2 center) 
+	{
+		return newBody(type,center,BodyType.KinematicBody);
+	}	
 
 	private BoxBuilder newStaticBody(ItemType type,Vector2 center) 
 	{	
-		return newBody(type,center,true);
+		return newBody(type,center,BodyType.StaticBody);
 	}
 
-	private BoxBuilder newBody(ItemType type,Vector2 center,boolean isStatic) 
+	private BoxBuilder newBody(ItemType type,Vector2 center,BodyType bodyType) 
 	{
-		return new BoxBuilder(type,center,isStatic);
+		return new BoxBuilder(type,center,bodyType);
 	}
 
 	protected final class BoxBuilder 
@@ -379,19 +400,19 @@ public class WorldModel implements ITickListener , IMathSupport
 		private final Vector2 center;
 		private final ItemType itemType;
 		private final Set<ItemType> collidesWith = new HashSet<>();
-		
-		private boolean isStatic;
+		private final BodyType bodyType;
 		private Shape shape;
 		private boolean isBuilt;
 		private float restitution=0;
 		private float friction;
 		private float gravityScale=1f;
+		
 
-		public BoxBuilder(ItemType type,Vector2 center, boolean isStatic) 
+		public BoxBuilder(ItemType type,Vector2 center, BodyType bodyType) 
 		{
 			this.itemType = type;
 			this.center = center.cpy();
-			this.isStatic = isStatic;
+			this.bodyType = bodyType;
 		}
 		
 		public BoxBuilder gravityScale(float gravityScale) {
@@ -457,10 +478,10 @@ public class WorldModel implements ITickListener , IMathSupport
 				throw new IllegalStateException("Shape not set?");
 			}
 
-			System.out.println("Creating "+(isStatic?"static":"dynamic")+" body @ "+center+" with shape "+this.shape);
+			System.out.println("Creating "+bodyType+" body @ "+center+" with shape "+this.shape);
 
 			final BodyDef bodyDef = new BodyDef();
-			bodyDef.type = isStatic ? BodyType.StaticBody : BodyType.DynamicBody;
+			bodyDef.type = bodyType;
 			bodyDef.position.set( center );
 			bodyDef.gravityScale = this.gravityScale;
 

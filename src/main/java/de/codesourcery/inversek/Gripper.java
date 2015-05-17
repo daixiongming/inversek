@@ -62,9 +62,9 @@ public class Gripper extends Bone
 		return basePlateLength;
 	}
 	
-	public void forwardKinematics() 
+	public void forwardKinematics(boolean useBox2dAngles) 
 	{
-		super.forwardKinematics();
+		super.forwardKinematics(useBox2dAngles);
 		positioningEnd.set( end ).sub( start ).nor().scl( clawLength/2f ).add( end );
 	}
 	

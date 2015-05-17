@@ -91,7 +91,7 @@ public class RobotArm implements ITickListener , IMathSupport {
 				Constants.BASEPLASE_LENGTH , 
 				Constants.CLAW_LENGTH ) );
 
-		chain.applyForwardKinematics();
+		chain.applyForwardKinematics(false);
 		
 		chain.visitJoints( joint -> 
 		{ 
@@ -147,32 +147,32 @@ public class RobotArm implements ITickListener , IMathSupport {
 				
 				// simulate motion to make sure no invalid configurations
 				// occur while moving
-				final KinematicsChain configToTest = model.getChains().get(0).createCopy();
-				
-				final List<JointAnimator> animators = new ArrayList<>();
-				for ( Joint joint : configToTest.getJoints() ) 
-				{
-					final float dstAngle = chainInFinalConfig.getJointByID( joint.getId() ).getOrientationDegrees();
-					animators.add( new JointAnimator(joint, dstAngle ) );
-				}
-				while( ! animators.isEmpty() ) 
-				{
-					for (Iterator<JointAnimator> it = animators.iterator(); it.hasNext();) 
-					{
-						final JointAnimator m = it.next();
-						if ( ! m.tick( 1f / Main.DESIRED_FPS ) ) {
-							it.remove();
-						}
-					}
-					
-					// recalculate bone positions
-					configToTest.applyForwardKinematics();
-					
-					// validate configuration
-					if ( isAnyBoneBelowGroundPlane( configToTest ) ) {
-						return true;
-					}
-				}
+//				final KinematicsChain configToTest = model.getChains().get(0).createCopy();
+//				
+//				final List<JointAnimator> animators = new ArrayList<>();
+//				for ( Joint joint : configToTest.getJoints() ) 
+//				{
+//					final float dstAngle = chainInFinalConfig.getJointByID( joint.getId() ).getOrientationDegrees();
+//					animators.add( new JointAnimator(joint, dstAngle ) );
+//				}
+//				while( ! animators.isEmpty() ) 
+//				{
+//					for (Iterator<JointAnimator> it = animators.iterator(); it.hasNext();) 
+//					{
+//						final JointAnimator m = it.next();
+//						if ( ! m.tick( 1f / Main.DESIRED_FPS ) ) {
+//							it.remove();
+//						}
+//					}
+//					
+//					// recalculate bone positions
+//					configToTest.applyForwardKinematics();
+//					
+//					// validate configuration
+//					if ( isAnyBoneBelowGroundPlane( configToTest ) ) {
+//						return true;
+//					}
+//				}
 				return false; 
 			}
 			
@@ -193,7 +193,8 @@ public class RobotArm implements ITickListener , IMathSupport {
 				return false;
 			}
 		};
-		return new AsyncSolverWrapper( new CCDSolver(chain, desiredPoint, validator ) );
+		// return new AsyncSolverWrapper( new CCDSolver(chain, desiredPoint, validator ) );
+		return new CCDSolver(chain, desiredPoint, validator );
 	}
 	
 	public boolean moveArm(Vector2 desiredPoint) 
@@ -244,7 +245,7 @@ public class RobotArm implements ITickListener , IMathSupport {
 	{
 		solve(deltaSeconds);
 		jointControllers.values().forEach( act -> act.tick( deltaSeconds ) );
-		model.getChains().forEach( chain -> chain.applyForwardKinematics() );
+		model.getChains().forEach( chain -> chain.applyForwardKinematics(true) );
 		return true;
 	}
 	

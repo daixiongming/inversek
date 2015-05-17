@@ -4,7 +4,6 @@ import com.badlogic.gdx.physics.box2d.joints.RevoluteJoint;
 
 public final class JointAnimator implements ITickListener, IMathSupport
 {
-	private static final float ACTUATOR_SPEED = 90f;
 	private static final float EPSILON = 0.5f;
 	
 	private final Joint joint;
@@ -35,25 +34,24 @@ public final class JointAnimator implements ITickListener, IMathSupport
 				ccwDelta = (360-currentAngle) + desiredAngle;
 			}
 			
-			rJoint.setMaxMotorTorque( 10000);
-			float degPerSecond = 10;
+			float degPerSecond = Constants.MOTOR_SPEED;
 			if ( ccwDelta > cwDelta ) { // move clockwise
 				degPerSecond *= -1;
 			}
 			float lowerLimit = radToDeg( rJoint.getLowerLimit());
 			float upperLimit = radToDeg( rJoint.getUpperLimit());
 
-			rJoint.enableLimit(false);
 			System.out.println("Moving "+joint+" from "+currentAngle+"° (box2d limits: "+lowerLimit+","+upperLimit+") to "+desiredAngle+"° by "+degPerSecond+" degrees/s");
-			rJoint.setMotorSpeed( degToRad( degPerSecond ) );
-			rJoint.enableMotor( true );
+			rJoint.setMotorSpeed( degPerSecond );
 			motorStarted = true;
 			return true;
 		} 
+//		System.out.println( joint+" is at angle "+rJoint.getJointAngle()+", motor: "+rJoint.isMotorEnabled()+
+//				",limit_enabled: "+rJoint.isLimitEnabled()+", "
+//						+ "torque: "+rJoint.getMaxMotorTorque()+", active: "+rJoint.isActive()+" , speed: "+radToDeg( rJoint.getMotorSpeed() ) );
 		if ( Math.abs(currentAngle - desiredAngle) < EPSILON )
 		{
 			rJoint.setMotorSpeed( 0 );
-//			rJoint.enableMotor(false);
 				
 //				if ( Main.DEBUG ) {
 					System.out.println("Joint "+joint+" finished moving (actual: "+currentAngle+", desired: "+desiredAngle+")");

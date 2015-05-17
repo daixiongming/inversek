@@ -190,7 +190,7 @@ public class CCDSolver implements ISolver
 
 			// update bone positions
 			if ( currentJoint.successor != null  ) {
-				currentJoint.successor.forwardKinematics();				
+				currentJoint.successor.forwardKinematics(false);				
 			}
 			
 			// check for termination
