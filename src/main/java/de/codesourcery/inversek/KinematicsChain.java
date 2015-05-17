@@ -208,9 +208,9 @@ public class KinematicsChain implements Iterable<Node<?>>, IMathSupport
 		throw new RuntimeException("Either no bones or all bones end with a joint ?");
 	}
 	
-	public void applyForwardKinematics(boolean useBox2dAngles) 
+	public void applyForwardKinematics() 
 	{
-		getRootJoint().successor.forwardKinematics(useBox2dAngles);
+		getRootJoint().successor.forwardKinematics();
 	}	
 	
 	public void setRandomJointPositions(Random rnd) 
@@ -220,15 +220,7 @@ public class KinematicsChain implements Iterable<Node<?>>, IMathSupport
 	
 	public void syncWithBox2d() {
 		
-		for ( Joint j : getJoints() ) 
-		{
-			float modelDeg = j.getOrientationDegrees();
-			final float jointAngleInRad = j.getBody().getJointAngle();
-			final float jointAngleInDeg = radToDeg( j.getBody().getJointAngle() );
-			float actual = box2dAngleToDeg( jointAngleInRad );
-//			System.out.println("Syncing joint "+j+", model: "+modelDeg+" -> actual: "+actual+" (rad: "+jointAngleInRad+" -> "+jointAngleInDeg+")");
-			j.setOrientation( actual );
-		}
-		getRootJoint().successor.forwardKinematics(false);
+		getJoints().forEach( Joint::syncWithBox2d );
+		getRootJoint().successor.forwardKinematics();
 	}
 }

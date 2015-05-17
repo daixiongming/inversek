@@ -194,8 +194,7 @@ public class WorldModel implements ITickListener , IMathSupport
 			center.add( 2*de.codesourcery.inversek.Constants.JOINT_RADIUS+joint.successor.length , 0 );
 		}
 
-		// update positions
-		chain.applyForwardKinematics( true );
+		chain.syncWithBox2d();
 	}	
 
 	public void createJoint(de.codesourcery.inversek.Joint joint,Body predecessor,Body successor) 
@@ -204,7 +203,7 @@ public class WorldModel implements ITickListener , IMathSupport
 		def.collideConnected=false;
 		def.bodyA = predecessor;
 		if ( joint.predecessor == null ) { // attached to base
-			def.localAnchorA.set( 0 , Constants.ROBOTBASE_HEIGHT + Constants.JOINT_RADIUS);
+			def.localAnchorA.set( 0 , Constants.ROBOTBASE_HEIGHT/2f + Constants.JOINT_RADIUS);
 		} else {
 			def.localAnchorA.set( joint.predecessor.length/2+Constants.JOINT_RADIUS , 0 );
 		}

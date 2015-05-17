@@ -59,6 +59,10 @@ public interface IMathSupport {
 	
 	public default float normalizeAngleInDeg(float value) 
 	{
+		return normalizeDeg(value);
+	}
+	
+	public static float normalizeDeg(float value) {
 		while ( value > 360 ) {
 			value -= 360;
 		}
@@ -66,5 +70,5 @@ public interface IMathSupport {
 			value += 360;
 		}
 		return value;
-	}	
+	}
 }

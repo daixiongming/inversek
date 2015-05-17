@@ -104,7 +104,7 @@ public class Joint extends Node<RevoluteJoint> implements IMathSupport
 		
 		@Override
 		public String toString() {
-			return "Range[ "+Arrays.stream( intervals ).map( Interval::toString ).collect( Collectors.joining(",") )+" ]";
+			return Arrays.stream( intervals ).map( Interval::toString ).collect( Collectors.joining(",") );
 		}
 		
 		public float getMaxValidAngleCCW() {
@@ -227,6 +227,10 @@ public class Joint extends Node<RevoluteJoint> implements IMathSupport
 		this.successor = bone;
 	}	
 	
+	public void syncWithBox2d() {
+		setOrientation( getBox2dOrientationDegrees() );
+	}
+	
 	public void setOrientation(float degrees) 
 	{
 		orientationDegrees = range.clamp( degrees );
@@ -270,8 +274,13 @@ public class Joint extends Node<RevoluteJoint> implements IMathSupport
 		return predecessor == null ? orientationDegrees : orientationDegrees + predecessor.jointA.getSumOrientationDegrees();  
 	}
 	
-	public float getBox2dOrientationDegrees() {
-		return radToDeg( getBody().getJointAngle() );
+	public float getBox2dOrientationDegrees() 
+	{
+		float angle = radToDeg( getBody().getJointAngle() );
+		if ( angle < 0 ) {
+			angle = 360+angle;
+		}
+		return normalizeAngleInDeg( angle );
 	}
 	
 	public float getSumOrientationDegreesBox2d() 

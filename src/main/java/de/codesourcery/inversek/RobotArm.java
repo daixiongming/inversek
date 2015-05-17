@@ -36,6 +36,10 @@ public class RobotArm implements ITickListener , IMathSupport {
 			return ! tasks.isEmpty() || ! animators.isEmpty();
 		}
 		
+		public boolean isNotMoving() {
+			return tasks.isEmpty() && animators.isEmpty();
+		}		
+		
 		public void addTask(Runnable task) {
 			this.tasks.add(task);
 		}
@@ -51,17 +55,16 @@ public class RobotArm implements ITickListener , IMathSupport {
 			return true;
 		}
 		
-		public void setDesiredAngle(float angle) 
+		public void setDesiredAngle(float angleInDeg) 
 		{
-			if ( Main.DEBUG ) {
-				System.out.println("QUEUED: Actuator( "+this.joint+") will move from "+this.joint.getOrientationDegrees()+" -> "+angle);
-			}
+			final float normalizedAngle = IMathSupport.normalizeDeg( angleInDeg );
+			System.out.println("QUEUED: Actuator( "+this.joint+") will move from "+this.joint.getOrientationDegrees()+" -> "+normalizedAngle);
 			addTask( () ->  
 			{ 
 				if ( Main.DEBUG ) {
-					System.out.println("ACTIVE: Actuator( "+this.joint+") now moving from "+this.joint.getOrientationDegrees()+" -> "+angle);
+					System.out.println("ACTIVE: Actuator( "+this.joint+") now moving from "+this.joint.getOrientationDegrees()+" -> "+normalizedAngle);
 				}
-				animators.add( new JointAnimator( this.joint , angle ) ); 
+				animators.add( new JointAnimator( this.joint , normalizedAngle ) ); 
 			});
 		}
 	}
@@ -91,7 +94,7 @@ public class RobotArm implements ITickListener , IMathSupport {
 				Constants.BASEPLASE_LENGTH , 
 				Constants.CLAW_LENGTH ) );
 
-		chain.applyForwardKinematics(false);
+		chain.applyForwardKinematics();
 		
 		chain.visitJoints( joint -> 
 		{ 
@@ -219,12 +222,13 @@ public class RobotArm implements ITickListener , IMathSupport {
 		if ( outcome == Outcome.SUCCESS )
 		{
 			System.out.println("Found solution in "+solveTimeSecs*1000+" millis");
+			
 			currentSolver.getChain().visitJoints( joint -> 
 			{
-				if ( Main.DEBUG ) {
-					System.out.println("*** Joint "+joint+" is set to angle "+joint.getOrientationDegrees());
+				System.out.println("Solution: "+joint.getId()+": "+joint.getBox2dOrientationDegrees()+" -> "+joint.getOrientationDegrees() );
+				if ( ! internalMoveJoint( joint , joint.getOrientationDegrees() ) ) {
+					System.err.println("Failed to move "+joint+" after finding solution");
 				}
-				jointControllers.get( joint.getId() ).setDesiredAngle( joint.getOrientationDegrees() );
 				return true;
 			});
 			currentSolver = null;
@@ -235,9 +239,32 @@ public class RobotArm implements ITickListener , IMathSupport {
 		}
 	}
 	
+	public boolean moveJoint(Joint joint,float angleInDegrees) 
+	{
+		if ( hasFinishedMoving() ) 
+		{
+			return internalMoveJoint(joint,angleInDegrees);
+		}
+		return false;
+	}
+	
+	private boolean internalMoveJoint(Joint joint,float angleInDegrees) 
+	{
+		if ( joint.range.isInRange( angleInDegrees ) ) 
+		{
+			jointControllers.get( joint.getId() ).setDesiredAngle( angleInDegrees );
+			return true;
+		}
+		return false;
+	}
+	
 	public boolean hasFinishedMoving() 
 	{
-		return currentSolver == null && jointControllers.values().stream().noneMatch( JointController::isMoving );
+		return currentSolver == null && noJointIsMoving();
+	}
+	
+	private boolean noJointIsMoving() {
+		return ! jointControllers.values().stream().anyMatch( JointController::isMoving );
 	}
 
 	@Override
@@ -245,7 +272,7 @@ public class RobotArm implements ITickListener , IMathSupport {
 	{
 		solve(deltaSeconds);
 		jointControllers.values().forEach( act -> act.tick( deltaSeconds ) );
-		model.getChains().forEach( chain -> chain.applyForwardKinematics(true) );
+		model.getChains().forEach( chain -> chain.syncWithBox2d() );
 		return true;
 	}
 	

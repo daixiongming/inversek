@@ -41,16 +41,11 @@ public class Bone extends Node<com.badlogic.gdx.physics.box2d.Body>
 		return end;
 	}
 	
-	public void forwardKinematics(boolean useBox2dAngles) 
+	public void forwardKinematics() 
 	{
 		start.set( jointA.radius , 0 );
 		
-		final float orientationDegrees;
-		if ( useBox2dAngles ) {
-			orientationDegrees = jointA.getSumOrientationDegreesBox2d();
-		} else {
-			orientationDegrees = jointA.getSumOrientationDegrees();
-		}
+		final float orientationDegrees = jointA.getSumOrientationDegrees();
 		
 		start.rotate( orientationDegrees );
 		start.add( jointA.position );
@@ -68,7 +63,7 @@ public class Bone extends Node<com.badlogic.gdx.physics.box2d.Body>
 			jointB.position.set( tmp );
 			if ( jointB.successor != null ) 
 			{
-				jointB.successor.forwardKinematics(useBox2dAngles);
+				jointB.successor.forwardKinematics();
 			}
 		}
 	}

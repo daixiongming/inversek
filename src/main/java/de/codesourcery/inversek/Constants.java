@@ -26,14 +26,14 @@ public class Constants {
 	public static final float JOINT_RADIUS = 0;
 	public static final float JOINT_RENDER_RADIUS = 0.05f;
 	public static final float MAX_MOTOR_TORQUE = 10000;
-	public static final float MOTOR_SPEED = (float) (20 * Math.PI/180d); // deg -> rad
+	public static final float MOTOR_SPEED = (float) (10 * Math.PI/180d); // deg -> rad
 
 	// robot base
 	public static final float ROBOTBASE_WIDTH  = FACTOR*0.1f; // 10 cm
 	public static final float ROBOTBASE_HEIGHT = FACTOR*0.2f; // 20 cm
 
 	// box2d config
-	public static final float PHYSICS_TIMESTEP = 1/30f;
+	public static final float PHYSICS_TIMESTEP = 1/60f;
 	public static final int VELOCITY_ITERATIONS = 8; // 6
 	public static final int POSITION_ITERATIONS = 3; // 2
 	

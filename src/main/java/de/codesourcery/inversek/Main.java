@@ -8,7 +8,7 @@ import javax.swing.JFrame;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Box2D;
 
-public class Main 
+public class Main implements IMathSupport
 {
 	public static final boolean DEBUG = false;
 	public static final int DESIRED_FPS = 70;
@@ -21,6 +21,7 @@ public class Main
 	private final WorldModel worldModel;
 	private final RobotArm robotArm;
 	
+	private final KeyboardInput keyboardInput = new KeyboardInput();
 	private final MyPanel panel;
 	private final TickListenerContainer listenerContainer = new TickListenerContainer();
 
@@ -33,6 +34,7 @@ public class Main
 		robotArm = new RobotArm( worldModel );
 		
 		panel = new MyPanel( robotArm , worldModel );
+		keyboardInput.attach( panel );
 		
 		listenerContainer.add( robotArm );
 		listenerContainer.add( worldModel );
@@ -85,6 +87,24 @@ public class Main
 					}
 				}
 				panel.desiredPositionChanged = false;				
+			} 
+			else 
+			{
+				Node<?> selection = panel.selectedNode;
+				if ( selection != null && selection instanceof Joint) 
+				{
+					final float factor = keyboardInput.isIncAnglePressed() ? 1 : keyboardInput.isDecAnglePressed() ? -1 : 0;
+					if ( factor != 0 ) {
+						final Joint j = (Joint) selection;
+						float angleInDeg = j.getBox2dOrientationDegrees();
+						float newAngleInDeg = angleInDeg + factor * 2;
+						if ( robotArm.moveJoint( j , newAngleInDeg ) ) {
+							System.out.println("Moving "+j+" from "+angleInDeg+" to "+newAngleInDeg);
+						} else {
+							System.err.println("Failed to move joint");
+						}
+					}
+				}
 			}
 			
 			listenerContainer.tick( deltaSeconds );

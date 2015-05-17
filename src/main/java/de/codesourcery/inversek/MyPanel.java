@@ -398,7 +398,17 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 				}
 				break;
 			case JOINT:
-				details = " , orientation: "+((Joint) selectedNode).getOrientationDegrees()+"°";
+				final Joint joint = ((Joint) selectedNode);
+				
+				final float angleRad = joint.getBody().getJointAngle(); 
+				float angleDeg = radToDeg( angleRad );
+				float angle = angleDeg;
+				if ( angle < 0 ) {
+					angle = 360+angle;
+				}
+				float angleNorm = normalizeAngleInDeg( angle );
+				
+				details = " , model orientation: "+joint.getOrientationDegrees()+"° (box2d: rad="+angleRad+",deg="+angleDeg+",flipped: "+angle+", norm: "+angleNorm;
 				break;
 			default:
 				break;
@@ -545,6 +555,14 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 
 		setBoundingBox( bone , tmpBox );
 		renderBox( tmpBox , true );
+		
+		// TODO: Remove debug rendering
+		graphics.setColor( Color.RED );
+		Vector2 debugP0 = bone.start.cpy();
+		Vector2 debugP1 = bone.end.cpy();
+		modelToView(debugP0,debugP0);
+		modelToView(debugP1,debugP1);
+		renderLine( debugP0 , debugP1 );
 
 		if ( bone instanceof Gripper) 
 		{
@@ -569,8 +587,20 @@ public final class MyPanel extends JPanel implements ITickListener , IMathSuppor
 			renderBox( gripper.getLowerClawBody().getPosition() ,
 					gripper.getClawLength() , Constants.CLAW_THICKNESS ,
 					Vector2.Zero,
-					radToDeg( gripper.getLowerClawBody().getAngle() ) , true );			
+					radToDeg( gripper.getLowerClawBody().getAngle() ) , true );		
+			
+			graphics.setColor( Color.RED );
+			
+			Vector2 tmp = gripper.getPositioningEnd().cpy();
+			modelToView( tmp , tmp );
+			graphics.drawLine( (int) (tmp.x -5), (int) tmp.y, (int) (tmp.x + 5  ) , (int) tmp.y );
+			graphics.drawLine( (int) tmp.x, (int) (tmp.y-5), (int) tmp.x , (int) (tmp.y+5) );
 		} 
+	}
+	
+	private void renderLine(Vector2 p0,Vector2 p1) 
+	{
+		getBackBufferGraphics().drawLine( (int) p0.x , (int) p0.y , (int) p1.x,(int) p1.y );
 	}
 
 	public Vector2 viewToModel(Point point) 
