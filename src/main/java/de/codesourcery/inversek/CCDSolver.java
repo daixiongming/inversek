@@ -132,7 +132,7 @@ public class CCDSolver implements ISolver
 		/* Code heavily inspired by http://www.ryanjuckett.com/programming/cyclic-coordinate-descent-in-2d/
 		 */
 
-		final float initialDistance = lastBone.getPositioningEnd().dst(desiredPosition);
+		final float initialDistance = lastBone.getPositioningEnd().dst2(desiredPosition);
 		
 		final Vector2 curToEnd= new Vector2();
 		final Vector2 curToTarget = new Vector2();
